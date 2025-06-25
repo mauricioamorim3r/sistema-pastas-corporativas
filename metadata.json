@@ -1,0 +1,5 @@
+{
+  "name": "Sistema de Pastas Corporativas",
+  "description": "Uma aplicação web para gerenciar uma estrutura hierárquica de pastas corporativas, com visualizações clássica e moderna, e funcionalidades de edição.",
+  "requestFramePermissions": []
+}

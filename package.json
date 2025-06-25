@@ -1,0 +1,70 @@
+{
+  "name": "sistema-de-pastas-corporativas",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Sistema de Gerenciamento de Pastas Corporativas",
+  "author": "Desenvolvedor",
+  "homepage": "./",
+  "main": "electron.cjs",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "build:web": "vite build",
+    "preview:web": "vite preview --host",
+    "electron": "electron .",
+    "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:5173 && electron .\"",
+    "build-electron": "npm run build && electron .",
+    "dist": "npm run build && electron-builder",
+    "pack": "npm run build && electron-builder --dir",
+    "release": "npm run build && electron-builder --publish=never"
+  },
+  "dependencies": {
+    "@sentry/react": "^9.31.0",
+    "@sentry/tracing": "^7.120.3",
+    "@tailwindcss/vite": "^4.1.10",
+    "lucide-react": "^0.522.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "tailwindcss": "^4.1.10"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "concurrently": "^8.2.2",
+    "wait-on": "^8.0.1",
+    "electron": "^37.0.0",
+    "electron-builder": "^26.0.12",
+    "typescript": "~5.7.2",
+    "vite": "^6.2.0"
+  },
+  "build": {
+    "appId": "com.empresa.pastas-corporativas",
+    "productName": "Pastas Corporativas",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "dist/**/*",
+      "electron.cjs",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "PastasCorporativas-${version}.exe"
+    },
+    "portable": {
+      "artifactName": "PastasCorporativas-Portable-${version}.exe"
+    },
+    "compression": "normal",
+    "publish": null
+  }
+}

@@ -1,0 +1,48 @@
+# Arquivos de desenvolvimento Electron (não necessários para web)
+dist-electron/
+distribuicao/
+build-executavel.bat
+electron.cjs
+*.exe
+
+# Documentação não essencial para deploy
+*.md
+!README.md
+
+# Logs e arquivos temporários
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor directories and files
+.vscode/
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Arquivos de sistema Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Arquivos temporários
+*.tmp
+*.temp
+~*
+
+# Node modules (o Vercel instala automaticamente)
+node_modules/
+
+# Arquivos de ambiente local
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
