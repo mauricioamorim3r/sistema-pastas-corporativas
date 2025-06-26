@@ -111,7 +111,7 @@ export const FolderMetricsDashboard: React.FC<FolderMetricsDashboardProps> = ({
         setUploadedFiles(updatedFiles);
         
         // Salvar no folder
-        onUpdateFolder(folder.id, { 
+        onUpdateFolder(String(folder.id), { 
           uploadedFiles: updatedFiles 
         });
       };
@@ -173,7 +173,7 @@ export const FolderMetricsDashboard: React.FC<FolderMetricsDashboardProps> = ({
     if (confirm('Tem certeza que deseja excluir este arquivo?')) {
       const updatedFiles = uploadedFiles.filter(f => f.id !== fileId);
       setUploadedFiles(updatedFiles);
-      onUpdateFolder(folder.id, { 
+      onUpdateFolder(String(folder.id), { 
         uploadedFiles: updatedFiles 
       });
     }
