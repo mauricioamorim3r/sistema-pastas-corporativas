@@ -112,6 +112,7 @@ const App: React.FC = () => {
     createFolder: createFolderWithHistory,
     updateFolder: updateFolderWithHistory,
     deleteFolder: deleteFolderWithHistory,
+    moveFolder,
     importFolders: importFoldersWithHistory
   } = useHistoryManager(INITIAL_FOLDERS_DATA);
 
@@ -119,6 +120,16 @@ const App: React.FC = () => {
   const { isFavorite, toggleFavorite } = useFavorites();
 
   const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
+  
+  // Estados para drag and drop
+  const [draggedFolder, setDraggedFolder] = useState<Folder | null>(null);
+  const [dragOverFolder, setDragOverFolder] = useState<string | number | null>(null);
+  const [dragOverTimer, setDragOverTimer] = useState<NodeJS.Timeout | null>(null);
+  
+  // Novos estados para reordenação entre linhas
+  const [dragOverPosition, setDragOverPosition] = useState<'before' | 'after' | 'inside' | null>(null);
+  const [dragOverLine, setDragOverLine] = useState<string | number | null>(null);
+  
   const [isDetailsPanelOpen, setIsDetailsPanelOpen] = useState<boolean>(false);
   const [showPanelPresets, setShowPanelPresets] = useState<boolean>(false);
   const [currentPanelWidth, setCurrentPanelWidth] = useState<number>(35);
@@ -664,15 +675,276 @@ const App: React.FC = () => {
   const countTotalSubfolders = (folderList: Folder[]): number => {
     let count = 0;
     for (const folder of folderList) {
-        if (folder.subFolders) {
-            count += folder.subFolders.length;
-            count += countTotalSubfolders(folder.subFolders);
-        }
+      if (folder.subFolders) {
+        count += folder.subFolders.length;
+        count += countTotalSubfolders(folder.subFolders);
+      }
     }
     return count;
   };
       const totalRootFolders = folders.length;
     const totalSubfolders = countTotalSubfolders(folders);
+
+  // Funções de validação e auxílio para drag and drop
+  const isValidMove = (draggedId: string | number, targetId: string | number | null): boolean => {
+    if (draggedId === targetId) return false;
+    
+    const checkDescendant = (folder: Folder): boolean => {
+      if (folder.id === targetId) return true;
+      if (folder.subFolders) {
+        return folder.subFolders.some(checkDescendant);
+      }
+      return false;
+    };
+    
+    const draggedFolder = findFolderRecursively(folders, draggedId);
+    return draggedFolder ? !checkDescendant(draggedFolder) : false;
+  };
+
+  const findFolderParent = (folderList: Folder[], targetId: string | number): Folder | null => {
+    for (const folder of folderList) {
+      if (folder.subFolders) {
+        if (folder.subFolders.some(sub => sub.id === targetId)) {
+          return folder;
+        }
+        const found = findFolderParent(folder.subFolders, targetId);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  // Funções de drag and drop
+  const handleDragStart = (_e: React.DragEvent, folder: Folder) => {
+    setDraggedFolder(folder);
+    document.body.style.cursor = 'grabbing';
+  };
+
+  const handleDragOver = (e: React.DragEvent, targetFolder?: Folder) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!draggedFolder) return;
+    
+    if (!targetFolder) {
+      // Área raiz
+      setDragOverFolder('root');
+      setDragOverPosition(null);
+      setDragOverLine(null);
+      return;
+    }
+    
+    // Calcular posição do mouse relativa ao elemento
+    const rect = e.currentTarget.getBoundingClientRect();
+    const mouseY = e.clientY;
+    const elementTop = rect.top;
+    const elementHeight = rect.height;
+    const relativeY = mouseY - elementTop;
+    const position = relativeY / elementHeight;
+    
+    // Zonas de detecção:
+    // 0-25%: Inserir ANTES da pasta
+    // 25-75%: Mover PARA DENTRO da pasta (se válido)
+    // 75-100%: Inserir DEPOIS da pasta
+    
+    let detectedPosition: 'before' | 'after' | 'inside';
+    
+    if (position < 0.25) {
+      detectedPosition = 'before';
+    } else if (position > 0.75) {
+      detectedPosition = 'after';
+    } else {
+      detectedPosition = 'inside';
+    }
+    
+    // Se for "inside" mas não é um movimento válido, converter para "after"
+    if (detectedPosition === 'inside' && !isValidMove(draggedFolder.id, targetFolder.id)) {
+      detectedPosition = 'after';
+    }
+    
+    setDragOverFolder(targetFolder.id);
+    setDragOverPosition(detectedPosition);
+    setDragOverLine(detectedPosition !== 'inside' ? targetFolder.id : null);
+    
+    // Auto-expansão apenas para movimentação "inside"
+    if (detectedPosition === 'inside' && targetFolder.subFolders && targetFolder.subFolders.length > 0 && !expandedFolders.has(targetFolder.id)) {
+      if (dragOverTimer) clearTimeout(dragOverTimer);
+      
+      const timer = setTimeout(() => {
+        handleToggleFolder(targetFolder.id);
+      }, 800);
+      
+      setDragOverTimer(timer);
+    } else {
+      // Limpar timer se não for "inside"
+      if (dragOverTimer) {
+        clearTimeout(dragOverTimer);
+        setDragOverTimer(null);
+      }
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (dragOverTimer) {
+      clearTimeout(dragOverTimer);
+      setDragOverTimer(null);
+    }
+    
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      setDragOverFolder(null);
+      setDragOverPosition(null);
+      setDragOverLine(null);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, targetFolder?: Folder) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!draggedFolder) {
+      console.warn('❌ handleDrop: Nenhuma pasta sendo arrastada');
+      return;
+    }
+    
+    console.log('🎯 handleDrop iniciado:', {
+      draggedFolder: draggedFolder.name,
+      targetFolder: targetFolder?.name || 'área raiz',
+      dragOverPosition
+    });
+    
+    // Determinar tipo de operação baseado na posição detectada
+    if (dragOverPosition === 'before' || dragOverPosition === 'after') {
+      // Reordenação entre linhas
+      console.log('🔄 Detectado: Reordenação');
+      
+      if (!targetFolder) {
+        console.warn('❌ Reordenação sem pasta alvo');
+        return;
+      }
+      
+      const currentParent = findFolderParent(folders, draggedFolder.id);
+      const targetParent = findFolderParent(folders, targetFolder.id);
+      
+      // Verificar se estão no mesmo nível
+      const currentParentId = currentParent?.id || null;
+      const targetParentId = targetParent?.id || null;
+      
+      console.log('🔍 Verificando níveis:', {
+        currentParentId,
+        targetParentId,
+        sameLevel: currentParentId === targetParentId
+      });
+      
+      if (currentParentId !== targetParentId) {
+        showToast('Só é possível reordenar pastas no mesmo nível', 'warning');
+        console.warn('❌ Níveis diferentes - cancelando reordenação');
+        setDraggedFolder(null);
+        setDragOverFolder(null);
+        setDragOverPosition(null);
+        setDragOverLine(null);
+        return;
+      }
+      
+      // Executar reordenação
+      try {
+        const insertPosition = {
+          type: dragOverPosition as 'before' | 'after',
+          targetId: targetFolder.id
+        };
+        
+        console.log('🔄 Executando reordenação:', insertPosition);
+        moveFolder(draggedFolder.id, currentParentId, insertPosition);
+        
+        const positionText = dragOverPosition === 'before' ? 'antes' : 'depois';
+        showToast(`"${draggedFolder.name}" reordenada ${positionText} de "${targetFolder.name}"!`, 'success');
+        console.log('✅ Reordenação concluída com sucesso');
+      } catch (error) {
+        console.error('❌ Erro na reordenação:', error);
+        showToast('Erro ao reordenar pasta', 'error');
+      }
+    } else {
+      // Movimentação para dentro (comportamento original)
+      console.log('🔄 Detectado: Movimentação para dentro');
+      
+      const targetId = targetFolder?.id || null;
+      
+      // Verificar se já está no local correto
+      const currentParent = findFolderParent(folders, draggedFolder.id);
+      const currentParentId = currentParent?.id || null;
+      
+      console.log('🔍 Verificando posição atual:', {
+        currentParentId,
+        targetId,
+        alreadyInPlace: currentParentId === targetId
+      });
+      
+      if (currentParentId === targetId) {
+        showToast('A pasta já está neste local', 'info');
+        console.log('ℹ️ Pasta já está no local correto');
+        setDraggedFolder(null);
+        setDragOverFolder(null);
+        setDragOverPosition(null);
+        setDragOverLine(null);
+        return;
+      }
+      
+      // Verificar se é movimento válido
+      if (targetFolder && !isValidMove(draggedFolder.id, targetFolder.id)) {
+        showToast('Movimento inválido', 'error');
+        console.warn('❌ Movimento inválido detectado');
+        setDraggedFolder(null);
+        setDragOverFolder(null);
+        setDragOverPosition(null);
+        setDragOverLine(null);
+        return;
+      }
+      
+      try {
+        console.log('🔄 Executando movimentação para:', targetId);
+        moveFolder(draggedFolder.id, targetId);
+        
+        const targetName = targetFolder ? targetFolder.name : 'nível raiz';
+        showToast(`"${draggedFolder.name}" movida para "${targetName}"!`, 'success');
+        console.log('✅ Movimentação concluída com sucesso');
+        
+        // Auto-expandir pasta de destino
+        if (targetFolder && targetFolder.subFolders && !expandedFolders.has(targetFolder.id)) {
+          setTimeout(() => handleToggleFolder(targetFolder.id), 300);
+        }
+      } catch (error) {
+        console.error('❌ Erro na movimentação:', error);
+        showToast('Erro ao mover pasta', 'error');
+      }
+    }
+    
+    // Limpar todos os estados
+    console.log('🧹 Limpando estados do drag and drop');
+    setDraggedFolder(null);
+    setDragOverFolder(null);
+    setDragOverPosition(null);
+    setDragOverLine(null);
+    if (dragOverTimer) {
+      clearTimeout(dragOverTimer);
+      setDragOverTimer(null);
+    }
+  };
+
+  const handleDragEnd = () => {
+    document.body.style.cursor = '';
+    setDraggedFolder(null);
+    setDragOverFolder(null);
+    setDragOverPosition(null);
+    setDragOverLine(null);
+    
+    if (dragOverTimer) {
+      clearTimeout(dragOverTimer);
+      setDragOverTimer(null);
+    }
+  };
 
   const renderFolderItem = (folder: Folder, level = 0): React.ReactNode => {
     const hasSubfolders = folder.subFolders && folder.subFolders.length > 0;
@@ -691,17 +963,36 @@ const App: React.FC = () => {
     };
 
     const isSelected = selectedFolder?.id === folder.id;
-
     const isExpanded = expandedFolders.has(folder.id);
     
+    // Estados para drag and drop
+    const isBeingDragged = draggedFolder?.id === folder.id;
+    const isDraggedOver = dragOverFolder === folder.id;
+    const canAcceptDrop = draggedFolder && draggedFolder.id !== folder.id && isValidMove(draggedFolder.id, folder.id);
+    
+    // Estados para reordenação
+    const isReorderTarget = dragOverLine === folder.id;
+    const showTopLine = isReorderTarget && dragOverPosition === 'before';
+    const showBottomLine = isReorderTarget && dragOverPosition === 'after';
+    const showInsideHighlight = isDraggedOver && dragOverPosition === 'inside' && canAcceptDrop;
+    
     return (
-      <div key={folder.id} className="mb-1.5 last:mb-0">
+      <div key={folder.id} className="mb-1.5 last:mb-0 relative">
         <div
           className={`group flex items-center p-2.5 ${folder.color} ${folder.textColor || 'text-white'} rounded-lg
                      shadow-sm hover:shadow-md animate-folder-hover cursor-pointer animate-folder-entry
                      ${getHierarchyWidth(level)}
-                     ${isSelected ? 'ring-2 ring-offset-1 ring-offset-gray-100 dark:ring-offset-gray-800 ring-blue-500' : ''}`}
+                     ${isSelected ? 'ring-2 ring-offset-1 ring-offset-gray-100 dark:ring-offset-gray-800 ring-blue-500' : ''}
+                     ${isBeingDragged ? 'opacity-50 scale-90 blur-sm rotate-1' : ''}
+                     ${showInsideHighlight ? 'ring-2 ring-blue-400 scale-105 shadow-xl' : ''}
+                     ${isDraggedOver && !canAcceptDrop ? 'ring-2 ring-red-400 scale-95' : ''}`}
           style={{ paddingLeft: `${paddingLeft}px` }}
+          draggable={true}
+          onDragStart={(e) => handleDragStart(e, folder)}
+          onDragEnd={handleDragEnd}
+          onDragOver={(e) => handleDragOver(e, folder)}
+          onDragLeave={handleDragLeave}
+          onDrop={(e) => handleDrop(e, folder)}
           onClick={() => handleSelectFolder(folder)}
           role="treeitem"
           aria-expanded={hasSubfolders ? folder.isOpen : undefined}
@@ -774,6 +1065,32 @@ const App: React.FC = () => {
               <Trash2 size={18} />
             </button>
           </div>
+          
+          {/* Linhas visuais para reordenação */}
+          {showTopLine && draggedFolder && (
+            <div className="absolute top-0 right-0 left-0 z-20 h-1 bg-green-400 rounded-full shadow-lg">
+              <div className="absolute -top-2 left-1/2 px-2 py-1 text-xs font-medium text-white whitespace-nowrap bg-green-600 rounded transform -translate-x-1/2">
+                Inserir "{draggedFolder.name}" antes de "{folder.name}"
+              </div>
+            </div>
+          )}
+          
+          {showBottomLine && draggedFolder && (
+            <div className="absolute right-0 bottom-0 left-0 z-20 h-1 bg-green-400 rounded-full shadow-lg">
+              <div className="absolute -bottom-2 left-1/2 px-2 py-1 text-xs font-medium text-white whitespace-nowrap bg-green-600 rounded transform -translate-x-1/2">
+                Inserir "{draggedFolder.name}" depois de "{folder.name}"
+              </div>
+            </div>
+          )}
+          
+          {/* Overlay visual para feedback de drop interno */}
+          {showInsideHighlight && draggedFolder && (
+            <div className="flex absolute inset-0 z-10 justify-center items-center bg-blue-500 bg-opacity-20 rounded-lg border-2 border-blue-400 border-dashed">
+              <span className="px-3 py-1 text-sm font-medium text-white bg-blue-600 rounded-md shadow-lg">
+                Soltar "{draggedFolder.name}" aqui → dentro de "{folder.name}"
+              </span>
+            </div>
+          )}
         </div>
          {hasSubfolders && isExpanded && (
           <div 
@@ -1155,10 +1472,48 @@ const App: React.FC = () => {
                   )}
                 </div>
               </div>
-              <div className="overflow-auto flex-1 p-3 pt-3 sm:p-4">
+              <div 
+                className="overflow-auto relative flex-1 p-3 pt-3 sm:p-4"
+                onDragOver={(e) => handleDragOver(e)}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e)}
+              >
                 <div className="space-y-1">
                   {filteredFolders.map(folder => renderFolderItem(folder, 0))}
+                  
+                  {/* Zona adicional de drop para área raiz */}
+                  {draggedFolder && (
+                    <div 
+                      className={`mt-4 p-6 border-2 border-dashed rounded-lg transition-all duration-200 ${
+                        dragOverFolder === 'root' 
+                          ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20' 
+                          : 'border-gray-300 dark:border-gray-600 opacity-50'
+                      }`}
+                      onDragOver={(e) => handleDragOver(e)}
+                      onDrop={(e) => handleDrop(e)}
+                    >
+                      <div className="flex justify-center items-center text-gray-500 dark:text-gray-400">
+                        <span className="mr-2 text-2xl">🎯</span>
+                        <span className="text-sm font-medium">
+                          {dragOverFolder === 'root' 
+                            ? `Soltar "${draggedFolder.name}" na área raiz` 
+                            : 'Área de drop adicional'
+                          }
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
+                
+                {/* Overlay global para área raiz */}
+                {draggedFolder && dragOverFolder === 'root' && (
+                  <div className="flex absolute inset-0 z-20 justify-center items-center bg-blue-500 bg-opacity-10 rounded-lg border-2 border-blue-400 border-dashed pointer-events-none">
+                    <div className="flex items-center px-4 py-2 text-white bg-blue-600 rounded-lg shadow-lg">
+                      <span className="mr-2 text-xl">🏠</span>
+                      <span className="font-medium">Soltar "{draggedFolder.name}" na área raiz</span>
+                    </div>
+                  </div>
+                )}
                 
                 {/* Informações de status dentro do navegador */}
                 <div className="pt-3 mt-4 border-t border-gray-200 dark:border-gray-700">

@@ -47,6 +47,41 @@ body {
     background: linear-gradient(135deg, var(--tw-gradient-from) 0%, var(--tw-gradient-to) 100%);
     opacity: 0.9;
   }
+
+  /* Estilos para drag and drop */
+  .drag-ghost {
+    opacity: 0.6;
+    transform: scale(0.95);
+    filter: blur(1px);
+  }
+
+  .drag-over-valid {
+    transform: scale(1.05);
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+    border: 2px solid #3b82f6;
+  }
+
+  .drag-over-invalid {
+    transform: scale(0.98);
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.5);
+    border: 2px solid #ef4444;
+  }
+
+  .drop-zone-active {
+    background: linear-gradient(45deg, 
+      rgba(59, 130, 246, 0.1) 25%, 
+      transparent 25%, 
+      transparent 50%, 
+      rgba(59, 130, 246, 0.1) 50%, 
+      rgba(59, 130, 246, 0.1) 75%, 
+      transparent 75%);
+    background-size: 20px 20px;
+    animation: moveStripes 1s linear infinite;
+  }
+
+  .pulse-glow {
+    animation: pulseGlow 2s ease-in-out infinite;
+  }
 }
 
 @keyframes slideInFromLeft {
@@ -57,6 +92,24 @@ body {
   to {
     opacity: 1;
     transform: translateX(0);
+  }
+}
+
+@keyframes moveStripes {
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 20px 20px;
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.8);
   }
 }
 
@@ -102,4 +155,68 @@ html.dark .scrollbar-custom::-webkit-scrollbar-thumb {
 
 html.dark .scrollbar-custom::-webkit-scrollbar-thumb:hover {
   background: #718096;
-} 
+}
+
+/* Estilos específicos para melhorar drag and drop */
+.is-dragging {
+  user-select: none;
+}
+
+.is-dragging * {
+  cursor: grabbing !important;
+}
+
+.super-drop-zone {
+  position: relative;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.super-drop-zone:hover {
+  transform: scale(1.01);
+}
+
+.super-drop-zone.active {
+  transform: scale(1.05);
+  background: linear-gradient(135deg, rgba(59,130,246,0.1), rgba(147,197,253,0.2));
+  border: 4px dashed #3b82f6 !important;
+  box-shadow: 0 20px 40px rgba(59,130,246,0.3);
+  animation: pulseDropZone 1.5s ease-in-out infinite;
+}
+
+@keyframes pulseDropZone {
+  0%, 100% {
+    box-shadow: 0 20px 40px rgba(59,130,246,0.3);
+  }
+  50% {
+    box-shadow: 0 25px 50px rgba(59,130,246,0.5);
+  }
+}
+
+.folder-being-dragged {
+  position: relative;
+  z-index: 1000;
+  opacity: 0.6;
+  transform: scale(0.9) rotate(1deg);
+  filter: blur(0.5px);
+  box-shadow: 0 20px 40px rgba(59,130,246,0.4);
+  transition: all 0.2s ease;
+}
+
+.drop-indicator {
+  position: absolute;
+  width: 100%;
+  height: 4px;
+  background: linear-gradient(90deg, #3b82f6, #60a5fa, #3b82f6);
+  border-radius: 2px;
+  animation: moveIndicator 1s linear infinite;
+  z-index: 50;
+}
+
+@keyframes moveIndicator {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 100% 50%;
+  }
+}

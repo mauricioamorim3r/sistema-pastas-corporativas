@@ -126,7 +126,7 @@ export const EditableHeader: React.FC<EditableHeaderProps> = ({
     <div className={`flex items-center ${className}`}>
       {/* Logo ou Ícone */}
       <div 
-        className="relative mr-3 group" 
+        className="relative mr-6 group" 
         ref={logoMenuRef}
         onMouseEnter={handleLogoMouseEnter}
         onMouseLeave={handleLogoMouseLeave}
@@ -135,12 +135,12 @@ export const EditableHeader: React.FC<EditableHeaderProps> = ({
           <img
             src={logoUrl}
             alt="Logo"
-            className="w-10 h-10 object-contain rounded-lg shadow-md border border-gray-200 dark:border-gray-600 transition-all duration-200 hover:shadow-lg"
+            className="w-30 h-30 object-contain transition-all duration-200"
             onError={() => onLogoChange(null)}
           />
         ) : (
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-md transition-all duration-200 hover:shadow-lg hover:scale-105">
-            <FolderIcon size={24} className="text-white" />
+          <div className="w-30 h-30 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-md transition-all duration-200 hover:shadow-lg hover:scale-105">
+            <FolderIcon size={72} className="text-white" />
           </div>
         )}
         
@@ -168,7 +168,7 @@ export const EditableHeader: React.FC<EditableHeaderProps> = ({
 
         {/* Menu de upload de logo */}
         {showLogoUpload && (
-          <div className="absolute top-14 left-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl shadow-2xl p-4 z-[100] min-w-[220px] animate-in fade-in zoom-in duration-200">
+          <div className="absolute top-32 left-0 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-xl shadow-2xl p-4 z-[100] min-w-[220px] animate-in fade-in zoom-in duration-200">
             <div className="space-y-3">
               <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
                 {logoUrl ? 'Gerenciar Logo' : 'Adicionar Logo'}
@@ -228,7 +228,7 @@ export const EditableHeader: React.FC<EditableHeaderProps> = ({
               value={tempTitle}
               onChange={(e) => setTempTitle(e.target.value)}
               onKeyDown={handleKeyPress}
-              className="text-2xl font-bold bg-transparent border-b-2 border-blue-500 focus:outline-none text-gray-800 dark:text-gray-100 min-w-[200px]"
+              className="text-4xl font-bold bg-transparent border-b-2 border-blue-500 focus:outline-none text-gray-800 dark:text-gray-100 min-w-[400px]"
               placeholder="Digite o título..."
             />
             <button
@@ -248,7 +248,7 @@ export const EditableHeader: React.FC<EditableHeaderProps> = ({
           </div>
         ) : (
           <div className="flex items-center space-x-2">
-            <h1 className="text-2xl font-bold text-gray-800 dark:text-gray-100">
+            <h1 className="text-4xl font-bold text-gray-800 dark:text-gray-100">
               {title}
             </h1>
             <button

@@ -79,7 +79,18 @@ export const RESPONSIBLES_DATA: string[] = [
   'Todos'
 ];
 
-export const AVAILABLE_TAGS_DATA: string[] = [];
+export const AVAILABLE_TAGS_DATA: string[] = [
+  'anp',
+  'regulamentação', 
+  'documentos',
+  'técnico',
+  'operacional',
+  'administrativo',
+  'financeiro',
+  'medição',
+  'calibração',
+  'equipamentos'
+];
 
 // Funções para obter dados combinados (padrão + personalizados)
 export const getAllResponsibles = (): string[] => {
@@ -89,7 +100,8 @@ export const getAllResponsibles = (): string[] => {
   // Aplicar edições aos dados padrão
   const modifiedDefaults = RESPONSIBLES_DATA.map(item => editedDefaults[item] || item);
   
-  return [...modifiedDefaults, ...customResponsibles];
+  // Remover duplicatas usando Set
+  return Array.from(new Set([...modifiedDefaults, ...customResponsibles]));
 };
 
 export const getAllTags = (): string[] => {
@@ -99,7 +111,8 @@ export const getAllTags = (): string[] => {
   // Aplicar edições aos dados padrão
   const modifiedDefaults = AVAILABLE_TAGS_DATA.map(item => editedDefaults[item] || item);
   
-  return [...modifiedDefaults, ...customTags];
+  // Remover duplicatas usando Set
+  return Array.from(new Set([...modifiedDefaults, ...customTags]));
 };
 
 export const DEFAULT_NEW_FOLDER_DATA: NewFolderData = {

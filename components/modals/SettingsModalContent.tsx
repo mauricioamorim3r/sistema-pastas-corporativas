@@ -116,24 +116,7 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
     }
   }, []);
 
-  // Diagnóstico para debug
-  const debugUserData = () => {
-    console.log('🔍 DIAGNÓSTICO DE USUÁRIOS E TAGS:');
-    console.log('📊 Estado atual responsibles:', responsibles);
-    console.log('📊 Estado atual tags:', tags);
-    console.log('💾 localStorage responsibles:', localStorage.getItem('custom-responsibles'));
-    console.log('💾 localStorage tags:', localStorage.getItem('custom-tags'));
-    console.log('🔧 Responsáveis editados padrão:', editedDefaultResponsibles);
-    console.log('🔧 Tags editadas padrão:', editedDefaultTags);
-  };
-
-  // Disponibilizar função globalmente para debug
-  useEffect(() => {
-    (window as any).debugUserData = debugUserData;
-    return () => {
-      delete (window as any).debugUserData;
-    };
-  }, [responsibles, tags, editedDefaultResponsibles, editedDefaultTags]);
+  // Diagnóstico para debug (removido em produção)
 
   // Funções para gerenciar usuários
   const addResponsible = () => {
@@ -147,24 +130,17 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
   };
 
   const removeResponsible = (index: number) => {
-    console.log('🗑️ Removendo responsável:', index, responsibles[index]);
-    console.log('📊 Lista atual antes da remoção:', responsibles);
-    
     const updated = responsibles.filter((_, i) => i !== index);
-    console.log('📊 Lista após remoção:', updated);
-    
     setResponsibles(updated);
     localStorage.setItem('custom-responsibles', JSON.stringify(updated));
     
     // Forçar atualização do componente
     setTimeout(() => {
-      console.log('🔄 Estado atualizado:', updated);
       onDataChange();
     }, 100);
   };
 
   const updateResponsible = (index: number, newValue: string) => {
-    console.log('✏️ Atualizando responsável:', index, newValue, editingResponsible);
     if (newValue.trim()) {
       if (editingResponsible?.isDefault) {
         // Editando um responsável padrão
@@ -172,7 +148,6 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
         const updated = { ...editedDefaultResponsibles, [originalValue]: newValue.trim() };
         setEditedDefaultResponsibles(updated);
         localStorage.setItem('edited-default-responsibles', JSON.stringify(updated));
-        console.log('✅ Responsável padrão editado:', updated);
         onDataChange();
       } else {
         // Editando um responsável personalizado
@@ -181,10 +156,7 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
           updated[index] = newValue.trim();
           setResponsibles(updated);
           localStorage.setItem('custom-responsibles', JSON.stringify(updated));
-          console.log('✅ Responsável personalizado editado:', updated);
           onDataChange();
-        } else {
-          console.log('⚠️ Responsável já existe:', newValue.trim());
         }
       }
     }
@@ -203,7 +175,6 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
   };
 
   const removeTag = (index: number) => {
-    console.log('🗑️ Removendo tag:', index, tags[index]);
     const updated = tags.filter((_, i) => i !== index);
     setTags(updated);
     localStorage.setItem('custom-tags', JSON.stringify(updated));
@@ -211,7 +182,6 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
   };
 
   const updateTag = (index: number, newValue: string) => {
-    console.log('✏️ Atualizando tag:', index, newValue, editingTag);
     if (newValue.trim()) {
       if (editingTag?.isDefault) {
         // Editando uma tag padrão
@@ -219,7 +189,6 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
         const updated = { ...editedDefaultTags, [originalValue]: newValue.trim() };
         setEditedDefaultTags(updated);
         localStorage.setItem('edited-default-tags', JSON.stringify(updated));
-        console.log('✅ Tag padrão editada:', updated);
         onDataChange();
       } else {
         // Editando uma tag personalizada
@@ -228,10 +197,7 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
           updated[index] = newValue.trim();
           setTags(updated);
           localStorage.setItem('custom-tags', JSON.stringify(updated));
-          console.log('✅ Tag personalizada editada:', updated);
           onDataChange();
-        } else {
-          console.log('⚠️ Tag já existe:', newValue.trim());
         }
       }
     }
@@ -342,9 +308,9 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
     <div className="space-y-6">
       {/* Aparência */}
       <div>
-        <h3 className="text-lg font-medium text-gray-800 dark:text-gray-100 mb-3">🎨 Aparência</h3>
+        <h3 className="mb-3 text-lg font-medium text-gray-800 dark:text-gray-100">🎨 Aparência</h3>
         <div className="space-y-3">
-          <label className="flex items-center justify-between">
+          <label className="flex justify-between items-center">
             <span className="text-sm text-gray-700 dark:text-gray-300">Modo escuro</span>
             <button
               onClick={onToggleDarkMode}
@@ -358,7 +324,7 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
             </button>
           </label>
 
-          <label className="flex items-center justify-between">
+          <label className="flex justify-between items-center">
             <span className="text-sm text-gray-700 dark:text-gray-300">Painel de detalhes</span>
             <button
               onClick={onToggleDetailsPanel}
@@ -373,7 +339,7 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
           </label>
 
           <div>
-            <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block mb-1 text-sm text-gray-700 dark:text-gray-300">
               Largura do painel principal: {currentPanelWidth}%
             </label>
             <input
@@ -386,7 +352,7 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
             />
           </div>
 
-          <label className="flex items-center justify-between">
+          <label className="flex justify-between items-center">
             <span className="text-sm text-gray-700 dark:text-gray-300">Modo compacto</span>
             <button
               onClick={() => setSettings(prev => ({ ...prev, compactMode: !prev.compactMode }))}
@@ -404,9 +370,9 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
 
       {/* Comportamento */}
       <div>
-        <h3 className="text-lg font-medium text-gray-800 dark:text-gray-100 mb-3">⚙️ Comportamento</h3>
+        <h3 className="mb-3 text-lg font-medium text-gray-800 dark:text-gray-100">⚙️ Comportamento</h3>
         <div className="space-y-3">
-          <label className="flex items-center justify-between">
+          <label className="flex justify-between items-center">
             <span className="text-sm text-gray-700 dark:text-gray-300">Salvamento automático</span>
             <button
               onClick={() => setSettings(prev => ({ ...prev, autoSave: !prev.autoSave }))}
@@ -420,7 +386,7 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
             </button>
           </label>
 
-          <label className="flex items-center justify-between">
+          <label className="flex justify-between items-center">
             <span className="text-sm text-gray-700 dark:text-gray-300">Mostrar notificações</span>
             <button
               onClick={() => setSettings(prev => ({ ...prev, showNotifications: !prev.showNotifications }))}
@@ -434,7 +400,7 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
             </button>
           </label>
 
-          <label className="flex items-center justify-between">
+          <label className="flex justify-between items-center">
             <span className="text-sm text-gray-700 dark:text-gray-300">Sons habilitados</span>
             <button
               onClick={() => setSettings(prev => ({ ...prev, soundEnabled: !prev.soundEnabled }))}
@@ -448,7 +414,7 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
             </button>
           </label>
 
-          <label className="flex items-center justify-between">
+          <label className="flex justify-between items-center">
             <span className="text-sm text-gray-700 dark:text-gray-300">Mostrar tooltips</span>
             <button
               onClick={() => setSettings(prev => ({ ...prev, showTooltips: !prev.showTooltips }))}
@@ -463,7 +429,7 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
           </label>
 
           <div>
-            <label className="block text-sm text-gray-700 dark:text-gray-300 mb-1">
+            <label className="block mb-1 text-sm text-gray-700 dark:text-gray-300">
               Máximo de itens no histórico: {settings.maxHistoryItems}
             </label>
             <input
@@ -480,30 +446,30 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
 
       {/* Gerenciamento de Dados */}
       <div>
-        <h3 className="text-lg font-medium text-gray-800 dark:text-gray-100 mb-4">👥 Usuários e Tags</h3>
+        <h3 className="mb-4 text-lg font-medium text-gray-800 dark:text-gray-100">👥 Usuários e Tags</h3>
         
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* Gerenciamento de Usuários */}
           <div>
-          <h4 className="text-md font-medium text-gray-700 dark:text-gray-200 mb-2 flex items-center">
+          <h4 className="flex items-center mb-2 font-medium text-gray-700 text-md dark:text-gray-200">
             <Users size={18} className="mr-2" />
             Responsáveis
           </h4>
           
           {/* Adicionar novo usuário */}
-          <div className="flex space-x-2 mb-3">
+          <div className="flex mb-3 space-x-2">
             <input
               type="text"
               value={newResponsible}
               onChange={(e) => setNewResponsible(e.target.value)}
               placeholder="Novo responsável..."
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 text-sm"
+              className="flex-1 px-3 py-2 text-sm rounded-md border border-gray-300 border-solid focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
               onKeyDown={(e) => e.key === 'Enter' && addResponsible()}
             />
             <button
               onClick={addResponsible}
               disabled={!newResponsible.trim() || responsibles.includes(newResponsible.trim())}
-              className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+              className="px-3 py-2 text-white bg-blue-600 rounded-md transition-colors hover:bg-blue-700 disabled:bg-gray-400"
               title="Adicionar responsável"
             >
               <Plus size={18} />
@@ -511,7 +477,7 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
           </div>
 
           {/* Lista de usuários */}
-          <div className="space-y-1 max-h-48 overflow-y-auto scrollbar-custom">
+          <div className="overflow-y-auto space-y-1 max-h-48 scrollbar-custom">
             {/* Responsáveis padrão */}
             {RESPONSIBLES_DATA.map((responsible, index) => {
               const editedValue = editedDefaultResponsibles[responsible];
@@ -519,13 +485,13 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
               const editKey = `default-${index}`;
               
               return (
-                <div key={editKey} className="flex items-center justify-between p-2 bg-blue-50 dark:bg-blue-900/30 rounded border border-blue-200 dark:border-blue-700">
+                <div key={editKey} className="flex justify-between items-center p-2 bg-blue-50 rounded border border-blue-200 dark:bg-blue-900/30 dark:border-blue-700">
                   {editingResponsible?.index === index && editingResponsible?.isDefault ? (
                     <input
                       type="text"
                       value={editingResponsible.value}
                       onChange={(e) => setEditingResponsible({ index, value: e.target.value, isDefault: true })}
-                      className="flex-1 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-600 dark:text-gray-100 text-sm"
+                      className="flex-1 px-2 py-1 text-sm rounded border border-gray-300 border-solid focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-600 dark:text-gray-100"
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') updateResponsible(index, editingResponsible.value);
                         if (e.key === 'Escape') setEditingResponsible(null);
@@ -535,27 +501,27 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
                     />
                   ) : (
                     <span
-                      className="flex-1 text-sm cursor-pointer hover:text-blue-600 flex items-center"
+                      className="flex flex-1 items-center text-sm cursor-pointer hover:text-blue-600"
                       onClick={() => setEditingResponsible({ index, value: displayValue, isDefault: true })}
                     >
                       {displayValue}
-                      {editedValue && <span className="ml-2 text-xs text-blue-600 bg-blue-100 dark:bg-blue-800 px-1 rounded">editado</span>}
+                      {editedValue && <span className="px-1 ml-2 text-xs text-blue-600 bg-blue-100 rounded dark:bg-blue-800">editado</span>}
                     </span>
                   )}
-                  <span className="text-xs text-blue-600 dark:text-blue-400 px-2">padrão</span>
+                  <span className="px-2 text-xs text-blue-600 dark:text-blue-400">padrão</span>
                 </div>
               );
             })}
             
             {/* Responsáveis personalizados */}
             {responsibles.map((responsible, index) => (
-              <div key={`custom-${index}`} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-700 rounded">
+              <div key={`custom-${index}`} className="flex justify-between items-center p-2 bg-gray-50 rounded dark:bg-gray-700">
                 {editingResponsible?.index === index && !editingResponsible?.isDefault ? (
                   <input
                     type="text"
                     value={editingResponsible.value}
                     onChange={(e) => setEditingResponsible({ index, value: e.target.value, isDefault: false })}
-                    className="flex-1 px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-600 dark:text-gray-100 text-sm"
+                    className="flex-1 px-2 py-1 text-sm rounded border border-gray-300 border-solid focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-600 dark:text-gray-100"
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') updateResponsible(index, editingResponsible.value);
                       if (e.key === 'Escape') setEditingResponsible(null);
@@ -580,7 +546,7 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
                     console.log('🖱️ Clique no botão remover responsável:', index);
                     removeResponsible(index);
                   }}
-                  className="p-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-900 rounded transition-colors"
+                  className="p-1 text-red-500 rounded transition-colors hover:bg-red-100 dark:hover:bg-red-900"
                   title="Remover responsável"
                 >
                   <X size={18} />
@@ -592,25 +558,25 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
 
           {/* Gerenciamento de Tags */}
           <div>
-          <h4 className="text-md font-medium text-gray-700 dark:text-gray-200 mb-2 flex items-center">
+          <h4 className="flex items-center mb-2 font-medium text-gray-700 text-md dark:text-gray-200">
             <Hash size={18} className="mr-2" />
             Tags
           </h4>
           
           {/* Adicionar nova tag */}
-          <div className="flex space-x-2 mb-3">
+          <div className="flex mb-3 space-x-2">
             <input
               type="text"
               value={newTag}
               onChange={(e) => setNewTag(e.target.value)}
               placeholder="Nova tag..."
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 text-sm"
+              className="flex-1 px-3 py-2 text-sm rounded-md border border-gray-300 border-solid focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100"
               onKeyDown={(e) => e.key === 'Enter' && addTag()}
             />
             <button
               onClick={addTag}
               disabled={!newTag.trim() || tags.includes(newTag.trim())}
-              className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 transition-colors"
+              className="px-3 py-2 text-white bg-blue-600 rounded-md transition-colors hover:bg-blue-700 disabled:bg-gray-400"
               title="Adicionar tag"
             >
               <Plus size={18} />
@@ -618,10 +584,10 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
           </div>
 
           {/* Lista de tags */}
-          <div className="max-h-48 overflow-y-auto scrollbar-custom">
+          <div className="overflow-y-auto max-h-48 scrollbar-custom">
             {/* Tags padrão */}
             <div className="mb-3">
-              <h5 className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Tags Padrão</h5>
+              <h5 className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">Tags Padrão</h5>
               <div className="flex flex-wrap gap-2">
                 {AVAILABLE_TAGS_DATA.map((tag: string, index: number) => {
                   const editedValue = editedDefaultTags[tag];
@@ -629,13 +595,13 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
                   const editKey = `default-tag-${index}`;
                   
                   return (
-                    <div key={editKey} className="flex items-center bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200 rounded-full px-3 py-1 text-sm border border-blue-300 dark:border-blue-700">
+                    <div key={editKey} className="flex items-center px-3 py-1 text-sm text-blue-800 bg-blue-100 rounded-full border border-blue-300 dark:bg-blue-900 dark:text-blue-200 dark:border-blue-700">
                       {editingTag?.index === index && editingTag?.isDefault ? (
                         <input
                           type="text"
                           value={editingTag.value}
                           onChange={(e) => setEditingTag({ index, value: e.target.value, isDefault: true })}
-                          className="bg-transparent border-none outline-none text-sm w-20"
+                          className="w-20 text-sm bg-transparent border-none outline-none"
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') updateTag(index, editingTag.value);
                             if (e.key === 'Escape') setEditingTag(null);
@@ -645,7 +611,7 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
                         />
                       ) : (
                         <span
-                          className="cursor-pointer hover:underline flex items-center"
+                          className="flex items-center cursor-pointer hover:underline"
                           onClick={() => setEditingTag({ index, value: displayValue, isDefault: true })}
                         >
                           {displayValue}
@@ -661,16 +627,16 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
             {/* Tags personalizadas */}
             {tags.length > 0 && (
               <div>
-                <h5 className="text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">Tags Personalizadas</h5>
+                <h5 className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">Tags Personalizadas</h5>
                 <div className="flex flex-wrap gap-2">
                   {tags.map((tag, index) => (
-                    <div key={`custom-tag-${index}`} className="flex items-center bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200 rounded-full px-3 py-1 text-sm">
+                    <div key={`custom-tag-${index}`} className="flex items-center px-3 py-1 text-sm text-green-800 bg-green-100 rounded-full dark:bg-green-900 dark:text-green-200">
                       {editingTag?.index === index && !editingTag?.isDefault ? (
                         <input
                           type="text"
                           value={editingTag.value}
                           onChange={(e) => setEditingTag({ index, value: e.target.value, isDefault: false })}
-                          className="bg-transparent border-none outline-none text-sm w-20"
+                          className="w-20 text-sm bg-transparent border-none outline-none"
                           onKeyDown={(e) => {
                             if (e.key === 'Enter') updateTag(index, editingTag.value);
                             if (e.key === 'Escape') setEditingTag(null);
@@ -695,7 +661,7 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
                           console.log('🖱️ Clique no botão remover tag:', index);
                           removeTag(index);
                         }}
-                        className="ml-2 text-green-600 dark:text-green-400 hover:text-red-500 transition-colors"
+                        className="ml-2 text-green-600 transition-colors dark:text-green-400 hover:text-red-500"
                         title="Remover tag"
                       >
                         <X size={18} />
@@ -712,12 +678,12 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
 
       {/* Backup e Dados */}
       <div>
-        <h3 className="text-lg font-medium text-gray-800 dark:text-gray-100 mb-3">💾 Backup e Dados</h3>
+        <h3 className="mb-3 text-lg font-medium text-gray-800 dark:text-gray-100">💾 Backup e Dados</h3>
         <div className="space-y-3">
           <div className="flex space-x-2">
             <button
               onClick={handleExportData}
-              className="flex-1 flex items-center justify-center px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
+              className="flex flex-1 justify-center items-center px-3 py-2 text-sm text-white bg-blue-600 rounded-md transition-colors hover:bg-blue-700"
             >
               <Download size={18} className="mr-2" />
               Exportar Dados
@@ -725,7 +691,7 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
             <button
               onClick={handleImportData}
               disabled={!appData.trim()}
-              className="flex-1 flex items-center justify-center px-3 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400 transition-colors text-sm"
+              className="flex flex-1 justify-center items-center px-3 py-2 text-sm text-white bg-green-600 rounded-md transition-colors hover:bg-green-700 disabled:bg-gray-400"
             >
               <Upload size={18} className="mr-2" />
               Importar Dados
@@ -736,20 +702,20 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
             value={appData}
             onChange={(e) => setAppData(e.target.value)}
             placeholder="Cole aqui o JSON de backup para importar..."
-            className="w-full h-24 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 text-xs scrollbar-custom resize-none"
+            className="px-3 py-2 w-full h-24 text-xs rounded-md border border-gray-300 border-solid resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 scrollbar-custom"
           />
 
           <div className="flex space-x-2">
             <button
               onClick={handleResetSettings}
-              className="flex-1 flex items-center justify-center px-3 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 transition-colors text-sm"
+              className="flex flex-1 justify-center items-center px-3 py-2 text-sm text-white bg-yellow-600 rounded-md transition-colors hover:bg-yellow-700"
             >
               <RefreshCw size={18} className="mr-2" />
               Resetar Configurações
             </button>
             <button
               onClick={handleClearAllData}
-              className="flex-1 flex items-center justify-center px-3 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors text-sm"
+              className="flex flex-1 justify-center items-center px-3 py-2 text-sm text-white bg-red-600 rounded-md transition-colors hover:bg-red-700"
             >
               <Trash2 size={18} className="mr-2" />
               Limpar Todos os Dados
@@ -759,17 +725,17 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
       </div>
 
       {/* Botões de ação */}
-      <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+      <div className="flex justify-end pt-4 space-x-3 border-t border-gray-200 border-solid dark:border-gray-700">
         <button
           type="button"
-          className="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+          className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md transition-colors dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
           onClick={onClose}
         >
           Cancelar
         </button>
         <button
           type="button"
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center"
+          className="flex items-center px-4 py-2 text-white bg-blue-600 rounded-md transition-colors hover:bg-blue-700"
           onClick={handleSaveSettings}
         >
           <Save size={18} className="mr-2" />

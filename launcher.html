@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistema de Pastas Corporativas - Launcher</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .launcher-container {
+      text-align: center;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 60px 40px;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      max-width: 500px;
+      width: 90%;
+      animation: fadeInUp 0.8s ease-out;
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .logo {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 20px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% {
+        transform: scale(1);
+      }
+      50% {
+        transform: scale(1.05);
+      }
+    }
+
+    h1 {
+      font-size: 28px;
+      font-weight: 600;
+      margin-bottom: 10px;
+      background: linear-gradient(45deg, #fff, #e0e7ff);
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .subtitle {
+      font-size: 16px;
+      opacity: 0.9;
+      margin-bottom: 30px;
+      font-weight: 300;
+    }
+
+    .loading-indicator {
+      margin: 30px 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-top: 3px solid #fff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    .status-text {
+      font-size: 18px;
+      font-weight: 500;
+      margin-left: 15px;
+    }
+
+    .instructions {
+      font-size: 14px;
+      opacity: 0.8;
+      margin-top: 25px;
+      padding: 20px;
+      background: rgba(0, 0, 0, 0.1);
+      border-radius: 10px;
+      border-left: 4px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .error-message {
+      background: rgba(239, 68, 68, 0.2);
+      border: 1px solid rgba(239, 68, 68, 0.3);
+      border-radius: 10px;
+      padding: 20px;
+      margin-top: 20px;
+      display: none;
+    }
+
+    .retry-button {
+      background: rgba(255, 255, 255, 0.2);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      margin-top: 15px;
+      transition: all 0.3s ease;
+    }
+
+    .retry-button:hover {
+      background: rgba(255, 255, 255, 0.3);
+      transform: translateY(-2px);
+    }
+
+    .app-features {
+      margin-top: 25px;
+      text-align: left;
+      font-size: 13px;
+      opacity: 0.7;
+    }
+
+    .app-features ul {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    .app-features li {
+      margin: 8px 0;
+      padding-left: 20px;
+      position: relative;
+    }
+
+    .app-features li::before {
+      content: "✓";
+      position: absolute;
+      left: 0;
+      color: #10b981;
+      font-weight: bold;
+    }
+
+    @media (max-width: 600px) {
+      .launcher-container {
+        padding: 40px 20px;
+        margin: 20px;
+      }
+      
+      h1 {
+        font-size: 24px;
+      }
+      
+      .logo {
+        width: 60px;
+        height: 60px;
+        font-size: 30px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="launcher-container">
+    <div class="logo">📁</div>
+    
+    <h1>Sistema de Pastas Corporativas</h1>
+    <p class="subtitle">Organizando seus projetos com eficiência</p>
+    
+    <div class="loading-indicator">
+      <div class="spinner"></div>
+      <div class="status-text" id="statusText">Iniciando aplicação...</div>
+    </div>
+    
+    <div class="instructions">
+      <strong>📌 Instruções:</strong><br>
+      • Se nada acontecer, <strong>habilite pop-ups</strong> no navegador<br>
+      • A aplicação abrirá em uma nova janela otimizada<br>
+      • Mantenha esta aba aberta durante o carregamento
+    </div>
+
+    <div class="app-features">
+      <strong>🚀 Recursos da Aplicação:</strong>
+      <ul>
+        <li>Sistema completo de drag and drop</li>
+        <li>Favoritos e histórico de ações</li>
+        <li>Temas claro e escuro</li>
+        <li>Exportação e importação de layouts</li>
+        <li>Monitoramento de pastas em tempo real</li>
+      </ul>
+    </div>
+
+    <div class="error-message" id="errorMessage">
+      <strong>⚠️ Problema detectado</strong><br>
+      Não foi possível abrir a aplicação. Verifique se os pop-ups estão habilitados.
+      <button class="retry-button" onclick="tentarNovamente()">Tentar Novamente</button>
+    </div>
+  </div>
+
+  <script>
+    // Configurações da aplicação
+    const CONFIG = {
+      // URL da aplicação (local ou produção)
+      urlLocal: "http://localhost:5173/",
+      urlProducao: "https://sistema-pastas-corporativas.vercel.app/",
+      
+      // Configurações da janela
+      nomeJanela: "SistemaPastasCorporativas",
+      largura: 1400,
+      altura: 900,
+      
+      // Timeouts
+      timeoutCarregamento: 3000,
+      timeoutVerificacao: 5000
+    };
+
+    let janelaDaApp = null;
+    let tentativas = 0;
+    const maxTentativas = 3;
+
+    // Determinar URL baseada no ambiente
+    function obterUrlApp() {
+      const isLocalhost = window.location.hostname === 'localhost' || 
+                         window.location.hostname === '127.0.0.1';
+      return isLocalhost ? CONFIG.urlLocal : CONFIG.urlProducao;
+    }
+
+    // Calcular posição centralizada da janela
+    function calcularPosicao() {
+      const larguraTela = screen.width;
+      const alturaTela = screen.height;
+      const left = (larguraTela - CONFIG.largura) / 2;
+      const top = (alturaTela - CONFIG.altura) / 2;
+      return { left: Math.max(0, left), top: Math.max(0, top) };
+    }
+
+    // Atualizar status na interface
+    function atualizarStatus(texto, isError = false) {
+      const statusElement = document.getElementById('statusText');
+      statusElement.textContent = texto;
+      
+      if (isError) {
+        statusElement.style.color = '#fca5a5';
+      }
+    }
+
+    // Mostrar mensagem de erro
+    function mostrarErro() {
+      document.getElementById('errorMessage').style.display = 'block';
+      atualizarStatus('Falha ao iniciar aplicação', true);
+    }
+
+    // Abrir aplicação em nova janela
+    function abrirAplicacao() {
+      tentativas++;
+      
+      atualizarStatus(`Abrindo aplicação... (tentativa ${tentativas})`);
+      
+      const urlApp = obterUrlApp();
+      const posicao = calcularPosicao();
+      
+      const opcoes = [
+        `width=${CONFIG.largura}`,
+        `height=${CONFIG.altura}`,
+        `left=${posicao.left}`,
+        `top=${posicao.top}`,
+        'resizable=yes',
+        'scrollbars=yes',
+        'status=no',
+        'toolbar=no',
+        'menubar=no',
+        'location=no',
+        'directories=no',
+        'copyhistory=no'
+      ].join(',');
+
+      try {
+        janelaDaApp = window.open(urlApp, CONFIG.nomeJanela, opcoes);
+        
+        // Verificar se a janela foi bloqueada
+        setTimeout(() => {
+          if (!janelaDaApp || janelaDaApp.closed || typeof janelaDaApp.closed === 'undefined') {
+            if (tentativas < maxTentativas) {
+              atualizarStatus('Pop-up bloqueado. Tentando novamente...');
+              setTimeout(abrirAplicacao, 2000);
+            } else {
+              mostrarErro();
+            }
+          } else {
+            // Sucesso - configurar monitoramento
+            configurarMonitoramento();
+          }
+        }, 1000);
+        
+      } catch (error) {
+        console.error('Erro ao abrir aplicação:', error);
+        mostrarErro();
+      }
+    }
+
+    // Configurar monitoramento da janela aberta
+    function configurarMonitoramento() {
+      atualizarStatus('Aplicação carregando...');
+      
+      // Monitorar se a janela foi fechada
+      const verificarJanela = setInterval(() => {
+        if (janelaDaApp && janelaDaApp.closed) {
+          clearInterval(verificarJanela);
+          atualizarStatus('Aplicação fechada');
+          
+          // Opcional: fechar o launcher após alguns segundos
+          setTimeout(() => {
+            if (confirm('A aplicação foi fechada. Deseja fechar esta janela também?')) {
+              window.close();
+            }
+          }, 2000);
+        }
+      }, 1000);
+
+      // Verificar carregamento bem-sucedido
+      setTimeout(() => {
+        if (janelaDaApp && !janelaDaApp.closed) {
+          atualizarStatus('✅ Aplicação iniciada com sucesso!');
+          
+          // Opcional: minimizar ou fechar o launcher
+          setTimeout(() => {
+            if (confirm('Aplicação carregada! Deseja fechar esta janela de launcher?')) {
+              window.close();
+            }
+          }, 3000);
+        }
+      }, CONFIG.timeoutVerificacao);
+    }
+
+    // Função para tentar novamente
+    function tentarNovamente() {
+      document.getElementById('errorMessage').style.display = 'none';
+      tentativas = 0;
+      abrirAplicacao();
+    }
+
+    // Detectar se é um dispositivo móvel
+    function isMobile() {
+      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }
+
+    // Inicialização
+    document.addEventListener('DOMContentLoaded', () => {
+      // Verificar se é mobile
+      if (isMobile()) {
+        atualizarStatus('Redirecionando para versão mobile...');
+        setTimeout(() => {
+          window.location.href = obterUrlApp();
+        }, 1500);
+        return;
+      }
+
+      // Desktop: abrir em nova janela
+      setTimeout(abrirAplicacao, 1500);
+    });
+
+    // Prevenir fechamento acidental durante carregamento
+    window.addEventListener('beforeunload', (e) => {
+      if (janelaDaApp && !janelaDaApp.closed) {
+        e.preventDefault();
+        e.returnValue = 'A aplicação está rodando em outra janela. Tem certeza que deseja fechar?';
+      }
+    });
+
+    // Focar na janela da aplicação quando o launcher for clicado
+    window.addEventListener('focus', () => {
+      if (janelaDaApp && !janelaDaApp.closed) {
+        janelaDaApp.focus();
+      }
+    });
+  </script>
+</body>
+</html> 

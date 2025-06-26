@@ -415,8 +415,8 @@ export const LayoutManager: React.FC<LayoutManagerProps> = ({
             className="flex-1 px-2 py-1 text-sm bg-white rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-700"
           >
             <option value="Todos">Todas Categorias</option>
-            {Object.values(LayoutCategory).map(category => (
-              <option key={category} value={category}>{category}</option>
+            {Object.values(LayoutCategory).map((category, index) => (
+              <option key={`category-filter-${index}-${category}`} value={category}>{category}</option>
             ))}
           </select>
           <input
@@ -474,8 +474,8 @@ export const LayoutManager: React.FC<LayoutManagerProps> = ({
                 onChange={(e) => setNewLayoutCategory(e.target.value)}
                 className="px-3 py-2 w-full text-sm text-gray-900 bg-white rounded-lg border border-gray-300 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
-                {Object.values(LayoutCategory).map(category => (
-                  <option key={category} value={category}>{category}</option>
+                {Object.values(LayoutCategory).map((category, index) => (
+                  <option key={`category-dialog-${index}-${category}`} value={category}>{category}</option>
                 ))}
               </select>
             </div>

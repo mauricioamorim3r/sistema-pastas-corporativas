@@ -1,0 +1,76 @@
+{
+  "app": {
+    "name": "Sistema de Pastas Corporativas",
+    "description": "Organizando seus projetos com eficiência",
+    "version": "1.0.0",
+    "icon": "📁"
+  },
+  "urls": {
+    "local": "http://localhost:5173/",
+    "producao": "https://sistema-pastas-corporativas.vercel.app/",
+    "desenvolvimento": "http://localhost:3000/"
+  },
+  "window": {
+    "name": "SistemaPastasCorporativas",
+    "width": 1400,
+    "height": 900,
+    "resizable": true,
+    "scrollbars": true,
+    "centerOnScreen": true,
+    "features": {
+      "status": false,
+      "toolbar": false,
+      "menubar": false,
+      "location": false,
+      "directories": false,
+      "copyhistory": false
+    }
+  },
+  "behavior": {
+    "maxRetries": 3,
+    "loadingTimeout": 3000,
+    "verificationTimeout": 5000,
+    "autoCloseOnSuccess": false,
+    "confirmBeforeClose": true
+  },
+  "mobile": {
+    "redirectToApp": true,
+    "detectMobile": true
+  },
+  "features": [
+    "Sistema completo de drag and drop",
+    "Favoritos e histórico de ações",
+    "Temas claro e escuro",
+    "Exportação e importação de layouts",
+    "Monitoramento de pastas em tempo real",
+    "Interface responsiva e moderna",
+    "Atalhos de teclado personalizáveis"
+  ],
+  "instructions": {
+    "pt": {
+      "popupBlocked": "Se nada acontecer, habilite pop-ups no navegador",
+      "newWindow": "A aplicação abrirá em uma nova janela otimizada",
+      "keepOpen": "Mantenha esta aba aberta durante o carregamento"
+    },
+    "en": {
+      "popupBlocked": "If nothing happens, enable pop-ups in your browser",
+      "newWindow": "The application will open in an optimized new window",
+      "keepOpen": "Keep this tab open during loading"
+    }
+  },
+  "styling": {
+    "theme": "modern",
+    "colors": {
+      "primary": "#667eea",
+      "secondary": "#764ba2",
+      "success": "#10b981",
+      "error": "#ef4444",
+      "warning": "#f59e0b"
+    },
+    "animations": {
+      "fadeIn": true,
+      "pulse": true,
+      "spinner": true
+    }
+  }
+} 
