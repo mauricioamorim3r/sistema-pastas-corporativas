@@ -62,7 +62,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 Tentar Novamente
               </button>
             </div>
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {import.meta.env.MODE === 'development' && this.state.error && (
               <details className="mt-4 text-left">
                 <summary className="cursor-pointer text-sm font-medium text-gray-700 dark:text-gray-300">
                   Detalhes do Erro (Desenvolvimento)

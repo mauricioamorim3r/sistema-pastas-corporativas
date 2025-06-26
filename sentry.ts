@@ -2,12 +2,12 @@ import * as Sentry from '@sentry/react';
 
 export const initSentry = () => {
   Sentry.init({
-    dsn: process.env.REACT_APP_SENTRY_DSN || 'https://d0cac82f42420082174958c96f05e409@o4509531701706752.ingest.us.sentry.io/4509532509241344', // DSN do Sistema Pastas Corporativas
-    environment: process.env.NODE_ENV || 'development',
+    dsn: import.meta.env.VITE_SENTRY_DSN || 'https://d0cac82f42420082174958c96f05e409@o4509531701706752.ingest.us.sentry.io/4509532509241344', // DSN do Sistema Pastas Corporativas
+    environment: import.meta.env.MODE || 'development',
     tracesSampleRate: 1.0,
     beforeSend(event) {
       // Em desenvolvimento, mostra erros no console também
-      if (process.env.NODE_ENV === 'development') {
+      if (import.meta.env.MODE === 'development') {
         console.error('Sentry Error:', event);
       }
       return event;

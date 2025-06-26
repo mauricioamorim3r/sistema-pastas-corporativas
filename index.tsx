@@ -78,12 +78,11 @@ if ('serviceWorker' in navigator) {
 
 // Verificar se a aplicação deve abrir em nova janela
 const shouldOpenInNewWindow = () => {
-  // Se não estamos em nova janela e não estamos em desenvolvimento local
-  const isInPopup = window.opener !== null;
-  const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-  
-  // SEMPRE abrir em nova janela exclusiva, exceto se já estamos em popup ou em desenvolvimento local
-  return !isInPopup && !isDevelopment;
+  // DESABILITAR abertura automática de nova janela durante desenvolvimento
+  return false; // Temporariamente desabilitado para desenvolvimento
+  // const isInPopup = window.opener !== null;
+  // const isDevelopment = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  // return !isInPopup && !isDevelopment;
 };
 
 // Abrir em nova janela se necessário
