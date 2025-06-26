@@ -21,6 +21,7 @@
     "release": "npm run build && electron-builder --publish=never"
   },
   "dependencies": {
+    "@heroicons/react": "^2.2.0",
     "@sentry/react": "^9.31.0",
     "@sentry/tracing": "^7.120.3",
     "@tailwindcss/vite": "^4.1.10",

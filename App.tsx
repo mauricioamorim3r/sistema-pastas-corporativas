@@ -38,6 +38,12 @@ import MonitoringPanel from './components/MonitoringPanel';
 import { SettingsModalContent } from './components/modals/SettingsModalContent';
 import { IconRenderer } from './utils/iconUtils';
 
+// Novos imports para funcionalidades implementadas
+import { FolderSortControls, SortConfig } from './components/FolderSortControls';
+import { useFolderSorting } from './hooks/useFolderSorting';
+import { useAutoBackup } from './hooks/useAutoBackup';
+import SimpleSearchPanel, { SearchResult, SearchFilters } from './components/SimpleSearchPanel';
+
 // Helper function to recursively update folder properties
 const updateFolderRecursively = (
   foldersToUpdate: Folder[],
@@ -119,6 +125,17 @@ const App: React.FC = () => {
   // Hook para favoritos (será usado nas novas funcionalidades)
   const { isFavorite, toggleFavorite } = useFavorites();
 
+  // Novos hooks para as funcionalidades implementadas (serão usados nas próximas implementações)
+  // const { sortedFolders, sortConfig, updateSort } = useFolderSorting(folders);
+  // const { 
+  //   backups, 
+  //   stats, 
+  //   createManualBackup, 
+  //   restoreBackup,
+  //   config: backupConfig,
+  //   updateConfig: updateBackupConfig
+  // } = useAutoBackup();
+
   const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
   
   // Estados para drag and drop
@@ -144,6 +161,12 @@ const App: React.FC = () => {
   const [showImportModal, setShowImportModal] = useState<boolean>(false);
   const [showMonitoringPanel, setShowMonitoringPanel] = useState<boolean>(false);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
+
+  // Estados para busca avançada
+  const [showAdvancedSearch, setShowAdvancedSearch] = useState<boolean>(false);
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [searchFilters, setSearchFilters] = useState<SearchFilters | null>(null);
+  const [isSearchMode, setIsSearchMode] = useState<boolean>(false);
 
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const savedTheme = localStorage.getItem('theme');
@@ -247,6 +270,19 @@ const App: React.FC = () => {
   // Função para atualizar dados dinâmicos
   const refreshDynamicData = useCallback(() => {
     setAllResponsibles(getAllResponsibles());
+  }, []);
+
+  // Handler para resultados da busca avançada
+  const handleSearchResults = useCallback((results: SearchResult[]) => {
+    setSearchResults(results);
+    setIsSearchMode(results.length > 0 || (searchFilters && Object.values(searchFilters).some(v => 
+      Array.isArray(v) ? v.length > 0 : (v !== null && v !== '')
+    )));
+  }, [searchFilters]);
+
+  // Handler para mudanças nos filtros de busca
+  const handleFiltersChange = useCallback((filters: SearchFilters) => {
+    setSearchFilters(filters);
   }, []); 
 
   useEffect(() => {
@@ -1408,6 +1444,18 @@ const App: React.FC = () => {
                         {allResponsibles.map(r => <option key={r} value={r} className="bg-white dark:bg-gray-700">{r}</option>)}
                     </select>
                 </div>
+                <button
+                    onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
+                    className={`px-3 py-1.5 rounded-lg flex items-center text-xs font-medium shadow-xs transition-colors ${
+                        showAdvancedSearch || isSearchMode
+                            ? 'bg-blue-600 dark:bg-blue-500 text-white hover:bg-blue-700 dark:hover:bg-blue-600'
+                            : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                    }`}
+                    title="Busca Avançada"
+                >
+                    <Search size={16} className="mr-1" />
+                    Busca Avançada
+                </button>
             </div>
             <div className="flex justify-end space-x-2 w-full sm:w-auto sm:ml-auto">
                 <button onClick={handleCollapseAll} className="px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 flex items-center text-xs font-medium shadow-xs"><ChevronUp size={16} className="mr-1" />Recolher</button>
@@ -1431,6 +1479,23 @@ const App: React.FC = () => {
             </div>
         </div>
       </div>
+
+      {/* Painel de Busca Avançada */}
+      {showAdvancedSearch && (
+        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-[140px] z-10">
+          <div className="p-4">
+            <SimpleSearchPanel
+              folders={folders}
+              favorites={Object.keys(localStorage).filter(key => key.startsWith('favorite-')).map(key => key.replace('favorite-', ''))}
+              onResults={handleSearchResults}
+              onFiltersChange={handleFiltersChange}
+              isExpanded={true}
+              onToggleExpanded={() => {}}
+              className="max-w-none"
+            />
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main className="overflow-hidden flex-1 p-1 sm:p-2">
@@ -1499,7 +1564,20 @@ const App: React.FC = () => {
                 onDrop={(e) => handleDrop(e)}
               >
                 <div className="space-y-1">
-                  {filteredFolders.map(folder => renderFolderItem(folder, 0))}
+                  {/* Resultados da busca avançada ou pastas filtradas normalmente */}
+                  {isSearchMode && searchResults.length > 0 ? (
+                    <>
+                      <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-700">
+                        <div className="flex items-center space-x-2 text-blue-700 dark:text-blue-300">
+                          <Search size={16} />
+                          <span className="font-medium">Resultados da busca: {searchResults.length} pasta(s) encontrada(s)</span>
+                        </div>
+                      </div>
+                      {searchResults.map(folder => renderFolderItem(folder, 0))}
+                    </>
+                  ) : (
+                    filteredFolders.map(folder => renderFolderItem(folder, 0))
+                  )}
                   
                   {/* Zona adicional de drop para área raiz */}
                   {draggedFolder && (
