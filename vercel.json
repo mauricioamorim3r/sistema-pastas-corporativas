@@ -1,8 +1,8 @@
 {
   "framework": "vite",
-  "buildCommand": "echo 'Build já realizado localmente'",
+  "buildCommand": "npm run build",
   "outputDirectory": "dist",
-  "installCommand": "echo 'Instalação não necessária'",
+  "installCommand": "npm install",
   "devCommand": "npm run dev",
   "rewrites": [
     {
