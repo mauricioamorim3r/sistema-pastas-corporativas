@@ -3,6 +3,7 @@
 ## ⚡ Uso Imediato
 
 ### **1. Desenvolvimento Local:**
+
 ```bash
 # 1. Inicie o servidor
 npm run dev
@@ -12,6 +13,7 @@ http://localhost:5173/launcher.html
 ```
 
 ### **2. Produção:**
+
 ```
 https://sistema-pastas-corporativas.vercel.app/launcher.html
 ```
@@ -33,6 +35,7 @@ https://sistema-pastas-corporativas.vercel.app/launcher.html
 ## 🔧 Customização Rápida
 
 **Alterar dimensões da janela:**
+
 ```javascript
 // No launcher.html, linha ~225
 largura: 1600,  // Nova largura
@@ -40,6 +43,7 @@ altura: 1000,   // Nova altura
 ```
 
 **Alterar URLs:**
+
 ```javascript
 // No launcher.html, linha ~220
 urlLocal: "http://localhost:3000/",
@@ -57,11 +61,13 @@ urlProducao: "https://sua-url.com/",
 ## 🆘 Problemas Comuns
 
 **Pop-up bloqueado:**
+
 1. Habilitar pop-ups no navegador
 2. Adicionar localhost às exceções
 3. Usar modo incógnito
 
 **Janela não abre:**
+
 1. Verificar se aplicação está rodando
 2. Conferir URLs no código
 3. Testar em outro navegador

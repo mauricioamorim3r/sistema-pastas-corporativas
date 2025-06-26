@@ -1,5 +1,3 @@
-import { Folder } from '../types';
-
 interface DBConfig {
   name: string;
   version: number;
@@ -18,15 +16,6 @@ interface BackupData {
   type: 'manual' | 'auto' | 'scheduled';
   data: any;
   description?: string;
-}
-
-interface PendingSync {
-  id?: number;
-  timestamp: string;
-  operation: 'create' | 'update' | 'delete';
-  entity: string;
-  data: any;
-  retries: number;
 }
 
 export class IndexedDBManager {
@@ -333,7 +322,7 @@ export class IndexedDBManager {
   }
 
   // Busca full-text personalizada
-  async fullTextSearch(term: string, entityType?: string): Promise<any[]> {
+  async fullTextSearch(term: string): Promise<any[]> {
     if (!this.db) throw new Error('Database not initialized');
     
     const searchTerms = term.toLowerCase().split(' ').filter(t => t.length > 0);

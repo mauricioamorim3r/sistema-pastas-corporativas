@@ -56,7 +56,6 @@ export const AdvancedSearchPanel: React.FC<AdvancedSearchPanelProps> = ({
   onToggleExpanded
 }) => {
   const [filters, setFilters] = useState<SearchFilters>(DEFAULT_FILTERS);
-  const [searchHistory, setSearchHistory] = useState<string[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchStats, setSearchStats] = useState({
     totalResults: 0,
@@ -169,10 +168,16 @@ export const AdvancedSearchPanel: React.FC<AdvancedSearchPanelProps> = ({
           matchedFields.push('responsible');
         }
 
-        // Busca na categoria (peso 6)
-        if (folder.category?.toLowerCase().includes(term)) {
+        // Busca no path (peso 6)
+        if (folder.path?.toLowerCase().includes(term)) {
           relevance += 6;
-          matchedFields.push('category');
+          matchedFields.push('path');
+        }
+
+        // Busca na descrição (peso 4)
+        if (folder.description?.toLowerCase().includes(term)) {
+          relevance += 4;
+          matchedFields.push('description');
         }
 
         // Busca nas tags (peso 4)
@@ -198,11 +203,6 @@ export const AdvancedSearchPanel: React.FC<AdvancedSearchPanelProps> = ({
         return false;
       }
 
-      // Filtro por categoria
-      if (filters.category.length > 0 && !filters.category.includes(folder.category || '')) {
-        return false;
-      }
-
       // Filtro por tags
       if (filters.tags.length > 0) {
         const hasMatchingTag = filters.tags.some(tag => folder.tags?.includes(tag));
@@ -211,13 +211,13 @@ export const AdvancedSearchPanel: React.FC<AdvancedSearchPanelProps> = ({
 
       // Filtro por ter subpastas
       if (filters.hasSubfolders !== null) {
-        const hasSubfolders = (folder.subfolders?.length || 0) > 0;
+        const hasSubfolders = (folder.subFolders?.length || 0) > 0;
         if (filters.hasSubfolders !== hasSubfolders) return false;
       }
 
       // Filtro por favorito
       if (filters.isFavorite !== null) {
-        const isFavorite = favorites.includes(folder.id);
+        const isFavorite = favorites.includes(String(folder.id));
         if (filters.isFavorite !== isFavorite) return false;
       }
 
@@ -256,23 +256,23 @@ export const AdvancedSearchPanel: React.FC<AdvancedSearchPanelProps> = ({
   }, [performSearch]);
 
   return (
-    <div className={`bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg ${className}`}>
+    <div className={`bg-white rounded-lg border border-gray-200 dark:bg-gray-800 dark:border-gray-700 ${className}`}>
       {/* Header da busca */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="flex items-center space-x-3">
           <div className="relative flex-1">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+            <MagnifyingGlassIcon className="absolute left-3 top-1/2 w-5 h-5 text-gray-400 transform -translate-y-1/2" />
             <input
               type="text"
               value={filters.query}
               onChange={(e) => updateFilters({ query: e.target.value })}
               placeholder="Buscar pastas, responsáveis, categorias, tags..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+              className="py-2 pr-4 pl-10 w-full rounded-lg border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
             />
             {filters.query && (
               <button
                 onClick={() => updateFilters({ query: '' })}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-1/2 text-gray-400 transform -translate-y-1/2 hover:text-gray-600"
               >
                 <XMarkIcon className="w-5 h-5" />
               </button>
@@ -296,7 +296,7 @@ export const AdvancedSearchPanel: React.FC<AdvancedSearchPanelProps> = ({
 
         {/* Estatísticas da busca */}
         {(searchStats.totalResults > 0 || filters.query) && (
-          <div className="mt-3 flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
+          <div className="flex justify-between items-center mt-3 text-sm text-gray-600 dark:text-gray-400">
             <div className="flex items-center space-x-4">
               <span>
                 {isSearching ? 'Buscando...' : `${searchStats.totalResults} resultado(s) encontrado(s)`}
@@ -328,10 +328,10 @@ export const AdvancedSearchPanel: React.FC<AdvancedSearchPanelProps> = ({
           {/* Filtros por responsável */}
           {uniqueValues.responsibles.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                 Responsáveis
               </label>
-              <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
+              <div className="grid overflow-y-auto grid-cols-2 gap-2 max-h-32">
                 {uniqueValues.responsibles.map(responsible => (
                   <label key={responsible} className="flex items-center space-x-2">
                     <input
@@ -340,36 +340,10 @@ export const AdvancedSearchPanel: React.FC<AdvancedSearchPanelProps> = ({
                       onChange={() => updateFilters({
                         responsible: toggleArrayValue(filters.responsible, responsible)
                       })}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                     />
-                    <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
+                    <span className="text-sm text-gray-700 truncate dark:text-gray-300">
                       {responsible}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Filtros por categoria */}
-          {uniqueValues.categories.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Categorias
-              </label>
-              <div className="grid grid-cols-2 gap-2 max-h-32 overflow-y-auto">
-                {uniqueValues.categories.map(category => (
-                  <label key={category} className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      checked={filters.category.includes(category)}
-                      onChange={() => updateFilters({
-                        category: toggleArrayValue(filters.category, category)
-                      })}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
-                      {category}
                     </span>
                   </label>
                 ))}
@@ -380,10 +354,10 @@ export const AdvancedSearchPanel: React.FC<AdvancedSearchPanelProps> = ({
           {/* Filtros por tags */}
           {uniqueValues.tags.length > 0 && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                 Tags
               </label>
-              <div className="grid grid-cols-3 gap-2 max-h-32 overflow-y-auto">
+              <div className="grid overflow-y-auto grid-cols-3 gap-2 max-h-32">
                 {uniqueValues.tags.map(tag => (
                   <label key={tag} className="flex items-center space-x-2">
                     <input
@@ -392,9 +366,9 @@ export const AdvancedSearchPanel: React.FC<AdvancedSearchPanelProps> = ({
                       onChange={() => updateFilters({
                         tags: toggleArrayValue(filters.tags, tag)
                       })}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      className="text-blue-600 rounded border-gray-300 focus:ring-blue-500"
                     />
-                    <span className="text-sm text-gray-700 dark:text-gray-300 truncate">
+                    <span className="text-sm text-gray-700 truncate dark:text-gray-300">
                       {tag}
                     </span>
                   </label>
@@ -412,7 +386,7 @@ export const AdvancedSearchPanel: React.FC<AdvancedSearchPanelProps> = ({
                 onChange={() => updateFilters({
                   isFavorite: filters.isFavorite === true ? null : true
                 })}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="text-blue-600 rounded border-gray-300 focus:ring-blue-500"
               />
               <span className="text-sm text-gray-700 dark:text-gray-300">
                 Apenas favoritos
@@ -426,7 +400,7 @@ export const AdvancedSearchPanel: React.FC<AdvancedSearchPanelProps> = ({
                 onChange={() => updateFilters({
                   hasSubfolders: filters.hasSubfolders === true ? null : true
                 })}
-                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                className="text-blue-600 rounded border-gray-300 focus:ring-blue-500"
               />
               <span className="text-sm text-gray-700 dark:text-gray-300">
                 Tem subpastas

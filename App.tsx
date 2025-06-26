@@ -27,9 +27,10 @@ import { ResizablePanels, ResizablePanelsRef } from './components/ResizablePanel
 import { PanelSizePresets } from './components/PanelSizePresets';
 import { ResponsiveWrapper } from './components/ResponsiveWrapper';
 import { LayoutManager } from './components/LayoutManager';
-import { FavoritesPanel, useFavorites } from './components/FavoritesPanel';
+import { FavoritesPanel } from './components/FavoritesPanel';
 import { HistoryPanel } from './components/HistoryPanel';
 import { useHistoryManager } from './hooks/useHistoryManager';
+import { useFavorites } from './hooks/useFavorites';
 import { EditableHeader } from './components/EditableHeader';
 import { FolderMetricsDashboard } from './components/modals/FolderMetricsDashboard';
 import { EditFolderModalContent } from './components/modals/EditFolderModalContent';
@@ -39,9 +40,6 @@ import { SettingsModalContent } from './components/modals/SettingsModalContent';
 import { IconRenderer } from './utils/iconUtils';
 
 // Novos imports para funcionalidades implementadas
-import { FolderSortControls, SortConfig } from './components/FolderSortControls';
-import { useFolderSorting } from './hooks/useFolderSorting';
-import { useAutoBackup } from './hooks/useAutoBackup';
 import SimpleSearchPanel, { SearchResult, SearchFilters } from './components/SimpleSearchPanel';
 
 // Helper function to recursively update folder properties
@@ -275,7 +273,7 @@ const App: React.FC = () => {
   // Handler para resultados da busca avançada
   const handleSearchResults = useCallback((results: SearchResult[]) => {
     setSearchResults(results);
-    setIsSearchMode(results.length > 0 || (searchFilters && Object.values(searchFilters).some(v => 
+    setIsSearchMode(results.length > 0 || Boolean(searchFilters && Object.values(searchFilters).some(v => 
       Array.isArray(v) ? v.length > 0 : (v !== null && v !== '')
     )));
   }, [searchFilters]);
@@ -1567,7 +1565,7 @@ const App: React.FC = () => {
                   {/* Resultados da busca avançada ou pastas filtradas normalmente */}
                   {isSearchMode && searchResults.length > 0 ? (
                     <>
-                      <div className="mb-4 p-3 bg-blue-50 dark:bg-blue-900/30 rounded-lg border border-blue-200 dark:border-blue-700">
+                      <div className="p-3 mb-4 bg-blue-50 rounded-lg border border-blue-200 dark:bg-blue-900/30 dark:border-blue-700">
                         <div className="flex items-center space-x-2 text-blue-700 dark:text-blue-300">
                           <Search size={16} />
                           <span className="font-medium">Resultados da busca: {searchResults.length} pasta(s) encontrada(s)</span>

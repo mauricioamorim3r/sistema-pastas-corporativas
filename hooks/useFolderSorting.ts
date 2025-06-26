@@ -11,9 +11,6 @@ function getSortValue(folder: Folder, field: SortField): any {
     case 'responsible':
       return folder.responsible?.toLowerCase() || '';
     
-    case 'category':
-      return folder.category?.toLowerCase() || '';
-    
     case 'createdAt':
       return new Date(folder.createdAt || '').getTime() || 0;
     
@@ -22,7 +19,7 @@ function getSortValue(folder: Folder, field: SortField): any {
     
     case 'size':
       // Calcular tamanho baseado no número de subpastas
-      return folder.subfolders?.length || 0;
+      return folder.subFolders?.length || 0;
     
     case 'color':
       return folder.color || '';
@@ -176,7 +173,7 @@ export function useFolderSorting(folders: Folder[]) {
   }, [sortConfig, updateSort]);
 
   // Função para aplicar preset de ordenação
-  const applyPreset = useCallback((preset: 'alphabetical' | 'recent' | 'responsibility' | 'category' | 'size') => {
+  const applyPreset = useCallback((preset: 'alphabetical' | 'recent' | 'responsibility' | 'size') => {
     let newConfig: SortConfig;
     
     switch (preset) {
@@ -191,14 +188,6 @@ export function useFolderSorting(folders: Folder[]) {
       case 'responsibility':
         newConfig = { 
           field: 'responsible', 
-          direction: 'asc',
-          secondary: { field: 'name', direction: 'asc' }
-        };
-        break;
-      
-      case 'category':
-        newConfig = { 
-          field: 'category', 
           direction: 'asc',
           secondary: { field: 'name', direction: 'asc' }
         };
