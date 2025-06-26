@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Trash2, Edit2, Plus, FolderTree, Tag, Star, Download, Upload } from 'lucide-react';
+import { Trash2, Edit2, Plus, FolderTree, Tag, Star, Download, Upload, Palette } from 'lucide-react';
 import { CompleteSavedLayout, LegacySavedLayout, Folder, LayoutCategory, LayoutStats, LayoutTemplate } from '../types';
 import { getBrowserDatabase } from '../utils/browserDatabase';
 
@@ -286,10 +286,38 @@ export const LayoutManager: React.FC<LayoutManagerProps> = ({
     setShowSaveDialog(true);
   };
 
+  // Função para padronizar cores das pastas
+  const standardizeFolderColors = (folders: Folder[]): Folder[] => {
+    const processFolder = (folder: Folder, isSubfolder: boolean = false): Folder => {
+      const standardizedFolder = {
+        ...folder,
+        color: isSubfolder ? 'bg-blue-400' : 'bg-blue-600', // Azul claro para subpastas, azul escuro para pastas principais
+        textColor: 'text-white' // Texto branco para ambas
+      };
+
+      // Processar subpastas recursivamente
+      if (folder.subFolders && folder.subFolders.length > 0) {
+        standardizedFolder.subFolders = folder.subFolders.map(subfolder => 
+          processFolder(subfolder, true)
+        );
+      }
+
+      return standardizedFolder;
+    };
+
+    return folders.map(folder => processFolder(folder, false));
+  };
+
   const handleApplyLayout = (layout: CompleteSavedLayout) => {
+    // Padronizar cores das pastas antes de aplicar
+    const layoutWithStandardizedColors = {
+      ...layout,
+      folders: standardizeFolderColors(layout.folders || [])
+    };
+
     // Atualizar estatísticas de uso
     const updatedLayout = {
-      ...layout,
+      ...layoutWithStandardizedColors,
       stats: {
         ...layout.stats!,
         lastUsed: new Date().toLocaleDateString('pt-BR'),
@@ -304,6 +332,28 @@ export const LayoutManager: React.FC<LayoutManagerProps> = ({
     
     onApplyLayout(updatedLayout);
     onClose();
+  };
+
+  const handleStandardizeColors = (layout: CompleteSavedLayout) => {
+    const layoutWithStandardizedColors = {
+      ...layout,
+      folders: standardizeFolderColors(layout.folders || []),
+      updatedAt: new Date().toLocaleDateString('pt-BR')
+    };
+    
+    const updatedLayouts = savedLayouts.map(l => 
+      l.id === layout.id ? layoutWithStandardizedColors : l
+    );
+    saveLayoutsToStorage(updatedLayouts);
+  };
+
+  const handleStandardizeAllColors = () => {
+    const updatedLayouts = savedLayouts.map(layout => ({
+      ...layout,
+      folders: standardizeFolderColors(layout.folders || []),
+      updatedAt: new Date().toLocaleDateString('pt-BR')
+    }));
+    saveLayoutsToStorage(updatedLayouts);
   };
 
   const handleAddTag = () => {
@@ -382,6 +432,14 @@ export const LayoutManager: React.FC<LayoutManagerProps> = ({
             className="hidden"
             id="import-layout"
           />
+          <button
+            onClick={handleStandardizeAllColors}
+            className="p-2 text-purple-600 rounded-lg transition-colors hover:bg-purple-50 dark:text-purple-400 dark:hover:bg-purple-900"
+            title="Padronizar Cores de Todos os Templates"
+            disabled={savedLayouts.length === 0}
+          >
+            <Palette size={16} />
+          </button>
           <label
             htmlFor="import-layout"
             className="p-2 text-green-600 rounded-lg transition-colors cursor-pointer hover:bg-green-50 dark:text-green-400 dark:hover:bg-green-900"
@@ -627,6 +685,13 @@ export const LayoutManager: React.FC<LayoutManagerProps> = ({
 
                 <div className="flex items-center space-x-1 opacity-0 transition-opacity group-hover:opacity-100">
                   <button
+                    onClick={() => handleStandardizeColors(layout)}
+                    className="p-1.5 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900 rounded-lg transition-colors"
+                    title="Padronizar Cores (Azul/Azul Claro)"
+                  >
+                    <Palette size={14} />
+                  </button>
+                  <button
                     onClick={() => exportLayout(layout)}
                     className="p-1.5 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900 rounded-lg transition-colors"
                     title="Exportar Template"
@@ -655,8 +720,9 @@ export const LayoutManager: React.FC<LayoutManagerProps> = ({
       </div>
 
       <div className="pt-3 mt-4 border-t border-gray-200 dark:border-gray-700">
-        <div className="text-xs text-gray-500 dark:text-gray-400">
-          <strong>💡 Templates:</strong> Salvam estrutura completa de pastas, filtros, seleções e estado visual.
+        <div className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
+          <div><strong>💡 Templates:</strong> Salvam estrutura completa de pastas, filtros, seleções e estado visual.</div>
+          <div><strong>🎨 Cores:</strong> Use o ícone <Palette size={12} className="inline" /> para padronizar (azul para pastas, azul claro para subpastas).</div>
         </div>
       </div>
     </div>
