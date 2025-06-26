@@ -576,6 +576,21 @@ const App: React.FC = () => {
     setShowEditFolderModal(true);
   };
 
+  const handleUpdateFolder = (folderId: string | number, updates: Partial<Folder>) => {
+    // Encontrar a pasta atual
+    const currentFolder = findFolderRecursively(folders, folderId);
+    if (currentFolder) {
+      // Usar a função do history manager para manter histórico
+      const updatedFolder = { ...currentFolder, ...updates };
+      updateFolderWithHistory(updatedFolder);
+      
+      // Atualizar pasta selecionada se for a mesma que está sendo editada
+      if (selectedFolder && selectedFolder.id === folderId) {
+        setSelectedFolder(updatedFolder);
+      }
+    }
+  };
+
   const handleSaveEditedFolder = (updatedFolder: Folder) => {
     updateFolderWithHistory(updatedFolder);
     
@@ -1201,7 +1216,12 @@ const App: React.FC = () => {
         )}
 
         {/* Dashboard de Métricas */}
-        <FolderMetricsDashboard metrics={currentFolder.metrics} folderName={currentFolder.name} />
+        <FolderMetricsDashboard 
+          metrics={currentFolder.metrics} 
+          folderName={currentFolder.name}
+          folder={currentFolder}
+          onUpdateFolder={handleUpdateFolder}
+        />
 
         <div className="flex flex-col gap-2 pt-4 mt-auto sm:flex-row">
            <button onClick={() => handleOpenFolderSystem(currentFolder)} className="flex items-center justify-center px-4 py-2.5 rounded-lg flex-1 bg-blue-600 text-white hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 transition-colors">

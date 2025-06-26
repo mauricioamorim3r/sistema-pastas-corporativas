@@ -1,3 +1,13 @@
+export interface UploadedFile {
+  id: string;
+  name: string;
+  size: number;
+  type: string;
+  uploadDate: string;
+  url?: string;
+  data?: string; // Base64 para arquivos pequenos
+}
+
 export interface Folder {
   id: string | number;
   name: string;
@@ -18,6 +28,7 @@ export interface Folder {
   monitorDeadline?: string; // e.g. '30/04/2025'
   link?: string; // URL/caminho para abrir a pasta
   metrics?: FolderMetrics; // Métricas da pasta
+  uploadedFiles?: UploadedFile[]; // Arquivos carregados na pasta
 }
 
 // Novo: Layout Expandido com dados completos
