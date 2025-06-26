@@ -7,13 +7,13 @@
   },
   "urls": {
     "local": "http://localhost:5173/",
-    "producao": "https://sistema-pastas-corporativas.vercel.app/",
+    "producao": "https://sistema-pastas-corporativas-ovfx1i38c.vercel.app/",
     "desenvolvimento": "http://localhost:3000/"
   },
   "window": {
     "name": "SistemaPastasCorporativas",
-    "width": 1400,
-    "height": 900,
+    "width": 1200,
+    "height": 800,
     "resizable": true,
     "scrollbars": true,
     "centerOnScreen": true,
