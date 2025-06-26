@@ -7,7 +7,7 @@
   },
   "urls": {
     "local": "http://localhost:5173/",
-    "producao": "https://sistema-pastas-corporativas-ovfx1i38c.vercel.app/",
+    "producao": "https://sistema-pastas-corporativas-ag3xblpo4.vercel.app/",
     "desenvolvimento": "http://localhost:3000/"
   },
   "window": {
