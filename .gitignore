@@ -39,3 +39,4 @@ build-executavel.bat
 # Build outputs
 build/
 out/
+.vercel

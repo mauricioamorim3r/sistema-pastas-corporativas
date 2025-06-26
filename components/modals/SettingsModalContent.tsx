@@ -36,6 +36,13 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
     compactMode: false,
   });
 
+  // Configurações de cores para padronização
+  const [colorSettings, setColorSettings] = useState({
+    mainFolderColor: 'bg-blue-600',
+    subFolderColor: 'bg-blue-400', 
+    textColor: 'text-white'
+  });
+
   const [appData, setAppData] = useState<string>('');
 
   // Estados para gerenciamento de usuários e tags
@@ -58,6 +65,16 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
         setSettings({ ...settings, ...JSON.parse(savedSettings) });
       } catch (error) {
         console.error('Erro ao carregar configurações:', error);
+      }
+    }
+
+    // Carregar configurações de cores
+    const savedColorSettings = localStorage.getItem('color-settings');
+    if (savedColorSettings) {
+      try {
+        setColorSettings({ ...colorSettings, ...JSON.parse(savedColorSettings) });
+      } catch (error) {
+        console.error('Erro ao carregar configurações de cores:', error);
       }
     }
 
@@ -204,9 +221,17 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
     setEditingTag(null);
   };
 
+  // Função para atualizar configurações de cores
+  const updateColorSettings = (key: keyof typeof colorSettings, value: string) => {
+    const newColorSettings = { ...colorSettings, [key]: value };
+    setColorSettings(newColorSettings);
+    localStorage.setItem('color-settings', JSON.stringify(newColorSettings));
+  };
+
   // Salvar configurações
   const handleSaveSettings = () => {
     localStorage.setItem('app-settings', JSON.stringify(settings));
+    localStorage.setItem('color-settings', JSON.stringify(colorSettings));
     
     // Aplicar configurações imediatamente
     if (settings.compactMode) {
@@ -365,6 +390,128 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
               }`} />
             </button>
           </label>
+        </div>
+      </div>
+
+      {/* Configuração de Cores para Padronização */}
+      <div>
+        <h3 className="mb-3 text-lg font-medium text-gray-800 dark:text-gray-100">🎨 Cores de Padronização</h3>
+        <div className="p-4 bg-gray-50 rounded-lg border border-gray-200 dark:bg-gray-700 dark:border-gray-600">
+          <p className="mb-4 text-sm text-gray-600 dark:text-gray-400">
+            Configure as cores que serão usadas quando você clicar no botão "Padronizar Cores" 🎨 nos templates.
+          </p>
+          
+          <div className="space-y-4">
+            {/* Cor das Pastas Principais */}
+            <div>
+              <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                Cor das Pastas Principais
+              </label>
+              <select
+                value={colorSettings.mainFolderColor}
+                onChange={(e) => updateColorSettings('mainFolderColor', e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:border-gray-500 dark:text-gray-100"
+              >
+                <option value="bg-blue-600">Azul Escuro (Padrão)</option>
+                <option value="bg-blue-700">Azul Muito Escuro</option>
+                <option value="bg-blue-800">Azul Ultra Escuro</option>
+                <option value="bg-indigo-600">Índigo</option>
+                <option value="bg-purple-600">Roxo</option>
+                <option value="bg-green-600">Verde</option>
+                <option value="bg-teal-600">Verde Água</option>
+                <option value="bg-cyan-600">Ciano</option>
+                <option value="bg-gray-600">Cinza</option>
+                <option value="bg-slate-600">Ardósia</option>
+                <option value="bg-zinc-600">Zinco</option>
+                <option value="bg-neutral-600">Neutro</option>
+                <option value="bg-stone-600">Pedra</option>
+              </select>
+              <div className={`mt-2 w-full h-8 rounded-md ${colorSettings.mainFolderColor} border border-gray-300`}></div>
+            </div>
+
+            {/* Cor das Subpastas */}
+            <div>
+              <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                Cor das Subpastas
+              </label>
+              <select
+                value={colorSettings.subFolderColor}
+                onChange={(e) => updateColorSettings('subFolderColor', e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:border-gray-500 dark:text-gray-100"
+              >
+                <option value="bg-blue-400">Azul Claro (Padrão)</option>
+                <option value="bg-blue-300">Azul Muito Claro</option>
+                <option value="bg-blue-500">Azul Médio</option>
+                <option value="bg-indigo-400">Índigo Claro</option>
+                <option value="bg-purple-400">Roxo Claro</option>
+                <option value="bg-green-400">Verde Claro</option>
+                <option value="bg-teal-400">Verde Água Claro</option>
+                <option value="bg-cyan-400">Ciano Claro</option>
+                <option value="bg-gray-400">Cinza Claro</option>
+                <option value="bg-slate-400">Ardósia Clara</option>
+                <option value="bg-zinc-400">Zinco Claro</option>
+                <option value="bg-neutral-400">Neutro Claro</option>
+                <option value="bg-stone-400">Pedra Clara</option>
+              </select>
+              <div className={`mt-2 w-full h-8 rounded-md ${colorSettings.subFolderColor} border border-gray-300`}></div>
+            </div>
+
+            {/* Cor do Texto */}
+            <div>
+              <label className="block mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                Cor do Texto
+              </label>
+              <select
+                value={colorSettings.textColor}
+                onChange={(e) => updateColorSettings('textColor', e.target.value)}
+                className="w-full px-3 py-2 text-sm bg-white border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-600 dark:border-gray-500 dark:text-gray-100"
+              >
+                <option value="text-white">Branco (Padrão)</option>
+                <option value="text-black">Preto</option>
+                <option value="text-gray-100">Cinza Muito Claro</option>
+                <option value="text-gray-200">Cinza Claro</option>
+                <option value="text-gray-800">Cinza Escuro</option>
+                <option value="text-gray-900">Cinza Muito Escuro</option>
+              </select>
+              <div className={`mt-2 w-full h-8 rounded-md ${colorSettings.mainFolderColor} border border-gray-300 flex items-center justify-center`}>
+                <span className={`font-medium ${colorSettings.textColor}`}>Exemplo de Texto</span>
+              </div>
+            </div>
+
+            {/* Preview das Cores */}
+            <div className="p-3 bg-white rounded-lg border border-gray-200 dark:bg-gray-800 dark:border-gray-600">
+              <h4 className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Preview das Cores:</h4>
+              <div className="space-y-2">
+                <div className={`px-3 py-2 rounded-md ${colorSettings.mainFolderColor} ${colorSettings.textColor} text-sm font-medium`}>
+                  📁 Pasta Principal
+                </div>
+                <div className="ml-4 space-y-1">
+                  <div className={`px-3 py-2 rounded-md ${colorSettings.subFolderColor} ${colorSettings.textColor} text-sm`}>
+                    📁 Subpasta 1
+                  </div>
+                  <div className={`px-3 py-2 rounded-md ${colorSettings.subFolderColor} ${colorSettings.textColor} text-sm`}>
+                    📁 Subpasta 2
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Botão para Resetar Cores */}
+            <button
+              onClick={() => {
+                const defaultColors = {
+                  mainFolderColor: 'bg-blue-600',
+                  subFolderColor: 'bg-blue-400',
+                  textColor: 'text-white'
+                };
+                setColorSettings(defaultColors);
+                localStorage.setItem('color-settings', JSON.stringify(defaultColors));
+              }}
+              className="px-4 py-2 text-sm text-blue-600 bg-blue-50 border border-blue-200 rounded-md hover:bg-blue-100 dark:bg-blue-900/30 dark:border-blue-700 dark:text-blue-400 dark:hover:bg-blue-900/50"
+            >
+              🔄 Resetar para Cores Padrão
+            </button>
+          </div>
         </div>
       </div>
 

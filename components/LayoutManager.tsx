@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Trash2, Edit2, Plus, FolderTree, Tag, Star, Download, Upload, Palette } from 'lucide-react';
 import { CompleteSavedLayout, LegacySavedLayout, Folder, LayoutCategory, LayoutStats, LayoutTemplate } from '../types';
 import { getBrowserDatabase } from '../utils/browserDatabase';
+import { getColorSettings } from '../utils/colorSettings';
 
 interface LayoutManagerProps {
   // Props existentes (UI)
@@ -271,9 +272,38 @@ export const LayoutManager: React.FC<LayoutManagerProps> = ({
     setEditingLayout(null);
   };
 
-  const handleDeleteLayout = (layoutId: string) => {
-    const updatedLayouts = savedLayouts.filter(layout => layout.id !== layoutId);
-    saveLayoutsToStorage(updatedLayouts);
+  const handleDeleteLayout = async (layoutId: string) => {
+    try {
+      // Encontrar o layout que será removido
+      const layoutToDelete = savedLayouts.find(layout => layout.id === layoutId);
+      if (!layoutToDelete) {
+        console.error('Layout não encontrado:', layoutId);
+        return;
+      }
+
+      // Tentar remover do banco de dados primeiro
+      const db = await getBrowserDatabase();
+      const successDB = await db.deleteTemplate(layoutToDelete.name);
+      
+      if (successDB) {
+        console.log(`✅ Template "${layoutToDelete.name}" removido do banco de dados`);
+      } else {
+        console.warn(`⚠️ Não foi possível remover "${layoutToDelete.name}" do banco de dados`);
+      }
+
+      // Remover da lista local e localStorage como fallback
+      const updatedLayouts = savedLayouts.filter(layout => layout.id !== layoutId);
+      saveLayoutsToStorage(updatedLayouts);
+      
+      console.log(`🗑️ Template "${layoutToDelete.name}" removido da interface`);
+      
+    } catch (error) {
+      console.error('Erro ao remover layout:', error);
+      
+      // Fallback: remover apenas da lista local
+      const updatedLayouts = savedLayouts.filter(layout => layout.id !== layoutId);
+      saveLayoutsToStorage(updatedLayouts);
+    }
   };
 
   const handleEditLayout = (layout: CompleteSavedLayout) => {
@@ -286,13 +316,15 @@ export const LayoutManager: React.FC<LayoutManagerProps> = ({
     setShowSaveDialog(true);
   };
 
-  // Função para padronizar cores das pastas
+  // Função para padronizar cores das pastas usando configurações personalizáveis
   const standardizeFolderColors = (folders: Folder[]): Folder[] => {
+    const colorSettings = getColorSettings();
+    
     const processFolder = (folder: Folder, isSubfolder: boolean = false): Folder => {
       const standardizedFolder = {
         ...folder,
-        color: isSubfolder ? 'bg-blue-400' : 'bg-blue-600', // Azul claro para subpastas, azul escuro para pastas principais
-        textColor: 'text-white' // Texto branco para ambas
+        color: isSubfolder ? colorSettings.subFolderColor : colorSettings.mainFolderColor,
+        textColor: colorSettings.textColor
       };
 
       // Processar subpastas recursivamente
@@ -435,7 +467,7 @@ export const LayoutManager: React.FC<LayoutManagerProps> = ({
           <button
             onClick={handleStandardizeAllColors}
             className="p-2 text-purple-600 rounded-lg transition-colors hover:bg-purple-50 dark:text-purple-400 dark:hover:bg-purple-900"
-            title="Padronizar Cores de Todos os Templates"
+            title="Padronizar Cores de Todos os Templates (configurável em Configurações)"
             disabled={savedLayouts.length === 0}
           >
             <Palette size={16} />
@@ -687,7 +719,7 @@ export const LayoutManager: React.FC<LayoutManagerProps> = ({
                   <button
                     onClick={() => handleStandardizeColors(layout)}
                     className="p-1.5 text-purple-600 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900 rounded-lg transition-colors"
-                    title="Padronizar Cores (Azul/Azul Claro)"
+                    title="Padronizar Cores (configurável em Configurações)"
                   >
                     <Palette size={14} />
                   </button>
@@ -720,9 +752,9 @@ export const LayoutManager: React.FC<LayoutManagerProps> = ({
       </div>
 
       <div className="pt-3 mt-4 border-t border-gray-200 dark:border-gray-700">
-        <div className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
+        <div className="space-y-1 text-xs text-gray-500 dark:text-gray-400">
           <div><strong>💡 Templates:</strong> Salvam estrutura completa de pastas, filtros, seleções e estado visual.</div>
-          <div><strong>🎨 Cores:</strong> Use o ícone <Palette size={12} className="inline" /> para padronizar (azul para pastas, azul claro para subpastas).</div>
+                      <div><strong>🎨 Cores:</strong> Use o ícone <Palette size={12} className="inline" /> para padronizar cores (configurável em ⚙️ Configurações).</div>
         </div>
       </div>
     </div>
