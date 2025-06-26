@@ -1612,6 +1612,7 @@ const App: React.FC = () => {
       >
         <ExportModalContent
           jsonString={exportJsonString}
+          folders={folders}
           onGenerateJson={handleGenerateExportJson} 
           onCopyToClipboard={handleCopyToClipboard}
           onDownloadFile={handleDownloadJsonFile}

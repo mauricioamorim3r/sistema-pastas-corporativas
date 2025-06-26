@@ -1,0 +1,1 @@
+console.log('Responsáveis:', JSON.parse(localStorage.getItem('custom-responsibles') || '[]')); console.log('Editados:', JSON.parse(localStorage.getItem('edited-default-responsibles') || '{}')); console.log('Current page:', window.location.href);
