@@ -7,7 +7,7 @@
   },
   "urls": {
     "local": "http://localhost:5173/",
-    "producao": "https://sistema-pastas-corporativas.vercel.app/",
+    "producao": "https://pastas-4lod5weib-brava-projects-20250610.vercel.app/",
     "desenvolvimento": "http://localhost:3000/"
   },
   "window": {
