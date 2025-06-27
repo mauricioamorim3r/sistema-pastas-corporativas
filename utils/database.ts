@@ -3,7 +3,7 @@ import { Folder } from '../types';
 import logger from './secureLogger';
 
 // Configuração da conexão com Neon com timeout
-const sql = neon('postgresql://neondb_owner:npg_6PfsIabVdSB2@ep-still-haze-a5ct2l39-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require');
+const sql = neon('postgresql://neondb_owner:npg_eIBfo69wquxO@ep-still-haze-a5ct2l39-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require');
 
 // Configurações de timeout
 const TIMEOUT_CONFIG = {

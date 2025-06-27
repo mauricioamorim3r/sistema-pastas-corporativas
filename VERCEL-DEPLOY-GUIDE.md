@@ -19,7 +19,7 @@ Configure no painel do Vercel → Settings → Environment Variables:
 VITE_SENTRY_DSN=https://d0cac82f42420082174958c96f05e409@o4509531701706752.ingest.us.sentry.io/4509532509241344
 
 # OPCIONAL - Banco Neon (se usar)
-DATABASE_URL=postgresql://neondb_owner:npg_6PfsIabVdSB2@ep-still-haze-a5ct2l39-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require
+DATABASE_URL=postgresql://neondb_owner:npg_eIBfo69wquxO@ep-still-haze-a5ct2l39-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require
 ```
 
 ### 2. **Configurações de Build**
