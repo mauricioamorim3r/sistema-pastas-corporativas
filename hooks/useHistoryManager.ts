@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useRef } from 'react';
 import { Folder } from '../types';
 import { captureError } from '../sentry';
 
