@@ -1,4 +1,4 @@
-import React from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Folder } from '../types';
 import { captureError } from '../sentry';
 
@@ -48,13 +48,7 @@ interface UseHistoryManagerReturn {
 const MAX_HISTORY_SIZE = 50;
 
 export const useHistoryManager = (initialFolders: Folder[] = []): UseHistoryManagerReturn => {
-  // Verificação de segurança para React
-  if (!React || !React.useState) {
-    console.error('❌ React não está disponível ou useState é null');
-    throw new Error('React hooks não estão disponíveis');
-  }
-
-  const [historyState, setHistoryState] = React.useState<HistoryState>(() => {
+  const [historyState, setHistoryState] = useState<HistoryState>(() => {
     try {
       return {
         past: [],
@@ -71,10 +65,10 @@ export const useHistoryManager = (initialFolders: Folder[] = []): UseHistoryMana
     }
   });
 
-  const actionIdRef = React.useRef(0);
+  const actionIdRef = useRef(0);
 
   // Função para gerar ID único da ação
-  const generateActionId = React.useCallback(() => {
+  const generateActionId = useCallback(() => {
     try {
       return `action-${++actionIdRef.current}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     } catch (error) {
@@ -84,7 +78,7 @@ export const useHistoryManager = (initialFolders: Folder[] = []): UseHistoryMana
   }, []);
 
   // Função recursiva para clonar profundamente folders
-  const deepCloneFolders = React.useCallback((folders: Folder[]): Folder[] => {
+  const deepCloneFolders = useCallback((folders: Folder[]): Folder[] => {
     try {
       if (!Array.isArray(folders)) {
         console.warn('⚠️ deepCloneFolders: entrada não é array:', folders);
@@ -103,7 +97,7 @@ export const useHistoryManager = (initialFolders: Folder[] = []): UseHistoryMana
   }, []);
 
   // Função para encontrar pasta por ID
-  const findFolderById = React.useCallback((folders: Folder[], id: string | number): { folder: Folder; parent?: Folder; index: number } | null => {
+  const findFolderById = useCallback((folders: Folder[], id: string | number): { folder: Folder; parent?: Folder; index: number } | null => {
     try {
       if (!Array.isArray(folders) || (!id && id !== 0)) {
         return null;
@@ -130,7 +124,7 @@ export const useHistoryManager = (initialFolders: Folder[] = []): UseHistoryMana
   }, []);
 
   // Função para adicionar ação ao histórico
-  const addAction = React.useCallback((action: Omit<HistoryAction, 'id' | 'timestamp'>) => {
+  const addAction = useCallback((action: Omit<HistoryAction, 'id' | 'timestamp'>) => {
     try {
       const newAction: HistoryAction = {
         ...action,
@@ -471,7 +465,7 @@ export const useHistoryManager = (initialFolders: Folder[] = []): UseHistoryMana
   };
 
   // Ações principais
-  const undo = React.useCallback(() => {
+  const undo = useCallback(() => {
     try {
       setHistoryState(prevState => {
         try {
@@ -499,7 +493,7 @@ export const useHistoryManager = (initialFolders: Folder[] = []): UseHistoryMana
     }
   }, []);
 
-  const redo = React.useCallback(() => {
+  const redo = useCallback(() => {
     try {
       setHistoryState(prevState => {
         try {
@@ -527,7 +521,7 @@ export const useHistoryManager = (initialFolders: Folder[] = []): UseHistoryMana
     }
   }, []);
 
-  const setFolders = React.useCallback((folders: Folder[]) => {
+  const setFolders = useCallback((folders: Folder[]) => {
     try {
       if (!Array.isArray(folders)) {
         console.warn('⚠️ setFolders: entrada não é array:', folders);
@@ -544,7 +538,7 @@ export const useHistoryManager = (initialFolders: Folder[] = []): UseHistoryMana
     }
   }, []);
 
-  const clearHistory = React.useCallback(() => {
+  const clearHistory = useCallback(() => {
     try {
       setHistoryState(prevState => ({
         past: [],
@@ -558,7 +552,7 @@ export const useHistoryManager = (initialFolders: Folder[] = []): UseHistoryMana
   }, []);
 
   // Ações específicas com histórico automático
-  const createFolder = React.useCallback((folder: Folder, parentId?: string | number) => {
+  const createFolder = useCallback((folder: Folder, parentId?: string | number) => {
     try {
       if (!folder || !folder.id) {
         console.warn('⚠️ createFolder: pasta inválida:', folder);
@@ -588,7 +582,7 @@ export const useHistoryManager = (initialFolders: Folder[] = []): UseHistoryMana
     }
   }, [historyState.present, addAction]);
 
-  const updateFolder = React.useCallback((folder: Folder) => {
+  const updateFolder = useCallback((folder: Folder) => {
     try {
       if (!folder || !folder.id) {
         console.warn('⚠️ updateFolder: pasta inválida:', folder);
@@ -623,7 +617,7 @@ export const useHistoryManager = (initialFolders: Folder[] = []): UseHistoryMana
     }
   }, [historyState.present, addAction, findFolderById]);
 
-  const deleteFolder = React.useCallback((folderId: string | number) => {
+  const deleteFolder = useCallback((folderId: string | number) => {
     try {
       if (!folderId && folderId !== 0) {
         console.warn('⚠️ deleteFolder: ID inválido:', folderId);
@@ -659,7 +653,7 @@ export const useHistoryManager = (initialFolders: Folder[] = []): UseHistoryMana
     }
   }, [historyState.present, addAction, findFolderById]);
 
-  const moveFolder = React.useCallback((folderId: string | number, newParentId?: string | number | null, insertPosition?: { type: 'before' | 'after', targetId: string | number }) => {
+  const moveFolder = useCallback((folderId: string | number, newParentId?: string | number | null, insertPosition?: { type: 'before' | 'after', targetId: string | number }) => {
     console.log('🚀 moveFolder iniciado:', { folderId, newParentId, insertPosition });
     
     const found = findFolderById(historyState.present, folderId);
@@ -737,7 +731,7 @@ export const useHistoryManager = (initialFolders: Folder[] = []): UseHistoryMana
   };
 
   // Função para salvar layout atual
-  const saveCurrentLayout = React.useCallback(async (layoutName: string) => {
+  const saveCurrentLayout = useCallback(async (layoutName: string) => {
     try {
       if (!layoutName || typeof layoutName !== 'string') {
         console.warn('⚠️ saveCurrentLayout: nome do layout inválido:', layoutName);
@@ -772,7 +766,7 @@ export const useHistoryManager = (initialFolders: Folder[] = []): UseHistoryMana
     }
   }, [historyState.present, addAction]);
 
-  const importFolders = React.useCallback((importedFolders: Folder[]) => {
+  const importFolders = useCallback((importedFolders: Folder[]) => {
     try {
       if (!Array.isArray(importedFolders)) {
         console.warn('⚠️ importFolders: entrada não é array:', importedFolders);
