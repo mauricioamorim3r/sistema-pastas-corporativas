@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { getDBManager } from '../utils/indexedDBManager';
 
 export interface BackupConfig {
