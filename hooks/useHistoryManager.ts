@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { Folder } from '../types';
 import { captureError } from '../sentry';
 
@@ -48,65 +48,120 @@ interface UseHistoryManagerReturn {
 const MAX_HISTORY_SIZE = 50;
 
 export const useHistoryManager = (initialFolders: Folder[] = []): UseHistoryManagerReturn => {
-  const [historyState, setHistoryState] = useState<HistoryState>({
-    past: [],
-    present: initialFolders,
-    future: []
+  // Verificação de segurança para React
+  if (!React || !React.useState) {
+    console.error('❌ React não está disponível ou useState é null');
+    throw new Error('React hooks não estão disponíveis');
+  }
+
+  const [historyState, setHistoryState] = React.useState<HistoryState>(() => {
+    try {
+      return {
+        past: [],
+        present: Array.isArray(initialFolders) ? initialFolders : [],
+        future: []
+      };
+    } catch (error) {
+      console.error('❌ Erro ao inicializar estado do histórico:', error);
+      return {
+        past: [],
+        present: [],
+        future: []
+      };
+    }
   });
 
-  const actionIdRef = useRef(0);
+  const actionIdRef = React.useRef(0);
 
   // Função para gerar ID único da ação
-  const generateActionId = () => `action-${++actionIdRef.current}-${Date.now()}`;
+  const generateActionId = React.useCallback(() => {
+    try {
+      return `action-${++actionIdRef.current}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    } catch (error) {
+      console.error('❌ Erro ao gerar ID da ação:', error);
+      return `action-fallback-${Date.now()}`;
+    }
+  }, []);
 
   // Função recursiva para clonar profundamente folders
-  const deepCloneFolders = (folders: Folder[]): Folder[] => {
-    return folders.map(folder => ({
-      ...folder,
-      subFolders: folder.subFolders ? deepCloneFolders(folder.subFolders) : []
-    }));
-  };
+  const deepCloneFolders = React.useCallback((folders: Folder[]): Folder[] => {
+    try {
+      if (!Array.isArray(folders)) {
+        console.warn('⚠️ deepCloneFolders: entrada não é array:', folders);
+        return [];
+      }
+      
+      return folders.map(folder => ({
+        ...folder,
+        subFolders: folder.subFolders ? deepCloneFolders(folder.subFolders) : []
+      }));
+    } catch (error) {
+      console.error('❌ Erro ao clonar pastas:', error);
+      captureError(error as Error, { context: 'deepCloneFolders' });
+      return [];
+    }
+  }, []);
 
   // Função para encontrar pasta por ID
-  const findFolderById = (folders: Folder[], id: string | number): { folder: Folder; parent?: Folder; index: number } | null => {
-    for (let i = 0; i < folders.length; i++) {
-      const folder = folders[i];
-      if (folder.id === id) {
-        return { folder, index: i };
+  const findFolderById = React.useCallback((folders: Folder[], id: string | number): { folder: Folder; parent?: Folder; index: number } | null => {
+    try {
+      if (!Array.isArray(folders) || (!id && id !== 0)) {
+        return null;
       }
-      if (folder.subFolders) {
-        const found = findFolderById(folder.subFolders, id);
-        if (found) {
-          return { ...found, parent: folder };
+
+      for (let i = 0; i < folders.length; i++) {
+        const folder = folders[i];
+        if (folder && folder.id === id) {
+          return { folder, index: i };
+        }
+        if (folder && folder.subFolders) {
+          const found = findFolderById(folder.subFolders, id);
+          if (found) {
+            return { ...found, parent: folder };
+          }
         }
       }
+      return null;
+    } catch (error) {
+      console.error('❌ Erro ao buscar pasta por ID:', error);
+      captureError(error as Error, { context: 'findFolderById', folderId: id });
+      return null;
     }
-    return null;
-  };
+  }, []);
 
   // Função para adicionar ação ao histórico
-  const addAction = useCallback((action: Omit<HistoryAction, 'id' | 'timestamp'>) => {
-    const newAction: HistoryAction = {
-      ...action,
-      id: generateActionId(),
-      timestamp: Date.now()
-    };
-
-    setHistoryState(prevState => {
-      const newPast = [...prevState.past, newAction];
-      
-      // Limitar tamanho do histórico
-      if (newPast.length > MAX_HISTORY_SIZE) {
-        newPast.shift();
-      }
-
-      return {
-        past: newPast,
-        present: prevState.present,
-        future: [] // Limpar futuro quando nova ação é adicionada
+  const addAction = React.useCallback((action: Omit<HistoryAction, 'id' | 'timestamp'>) => {
+    try {
+      const newAction: HistoryAction = {
+        ...action,
+        id: generateActionId(),
+        timestamp: Date.now()
       };
-    });
-  }, []);
+
+      setHistoryState(prevState => {
+        try {
+          const newPast = [...(prevState.past || []), newAction];
+          
+          // Limitar tamanho do histórico
+          if (newPast.length > MAX_HISTORY_SIZE) {
+            newPast.shift();
+          }
+
+          return {
+            past: newPast,
+            present: prevState.present || [],
+            future: [] // Limpar futuro quando nova ação é adicionada
+          };
+        } catch (error) {
+          console.error('❌ Erro ao atualizar estado do histórico:', error);
+          return prevState;
+        }
+      });
+    } catch (error) {
+      console.error('❌ Erro ao adicionar ação ao histórico:', error);
+      captureError(error as Error, { context: 'addAction', actionType: action.type });
+    }
+  }, [generateActionId]);
 
   // Função para reverter ação
   const revertAction = (action: HistoryAction, folders: Folder[]): Folder[] => {
@@ -416,118 +471,195 @@ export const useHistoryManager = (initialFolders: Folder[] = []): UseHistoryMana
   };
 
   // Ações principais
-  const undo = useCallback(() => {
-    setHistoryState(prevState => {
-      if (prevState.past.length === 0) return prevState;
+  const undo = React.useCallback(() => {
+    try {
+      setHistoryState(prevState => {
+        try {
+          if (!prevState.past || prevState.past.length === 0) {
+            console.warn('⚠️ Não há ações para desfazer');
+            return prevState;
+          }
 
-      const lastAction = prevState.past[prevState.past.length - 1];
-      const newPresent = revertAction(lastAction, prevState.present);
+          const lastAction = prevState.past[prevState.past.length - 1];
+          const newPresent = revertAction(lastAction, prevState.present || []);
 
-      return {
-        past: prevState.past.slice(0, -1),
-        present: newPresent,
-        future: [lastAction, ...prevState.future]
-      };
-    });
+          return {
+            past: prevState.past.slice(0, -1),
+            present: newPresent,
+            future: [lastAction, ...(prevState.future || [])]
+          };
+        } catch (error) {
+          console.error('❌ Erro ao desfazer ação:', error);
+          return prevState;
+        }
+      });
+    } catch (error) {
+      console.error('❌ Erro na função undo:', error);
+      captureError(error as Error, { context: 'undo' });
+    }
   }, []);
 
-  const redo = useCallback(() => {
-    setHistoryState(prevState => {
-      if (prevState.future.length === 0) return prevState;
+  const redo = React.useCallback(() => {
+    try {
+      setHistoryState(prevState => {
+        try {
+          if (!prevState.future || prevState.future.length === 0) {
+            console.warn('⚠️ Não há ações para refazer');
+            return prevState;
+          }
 
-      const nextAction = prevState.future[0];
-      const newPresent = applyAction(nextAction, prevState.present);
+          const nextAction = prevState.future[0];
+          const newPresent = applyAction(nextAction, prevState.present || []);
 
-      return {
-        past: [...prevState.past, nextAction],
-        present: newPresent,
-        future: prevState.future.slice(1)
-      };
-    });
+          return {
+            past: [...(prevState.past || []), nextAction],
+            present: newPresent,
+            future: prevState.future.slice(1)
+          };
+        } catch (error) {
+          console.error('❌ Erro ao refazer ação:', error);
+          return prevState;
+        }
+      });
+    } catch (error) {
+      console.error('❌ Erro na função redo:', error);
+      captureError(error as Error, { context: 'redo' });
+    }
   }, []);
 
-  const setFolders = useCallback((folders: Folder[]) => {
-    setHistoryState(prevState => ({
-      ...prevState,
-      present: folders
-    }));
+  const setFolders = React.useCallback((folders: Folder[]) => {
+    try {
+      if (!Array.isArray(folders)) {
+        console.warn('⚠️ setFolders: entrada não é array:', folders);
+        return;
+      }
+
+      setHistoryState(prevState => ({
+        ...prevState,
+        present: folders
+      }));
+    } catch (error) {
+      console.error('❌ Erro ao definir pastas:', error);
+      captureError(error as Error, { context: 'setFolders' });
+    }
   }, []);
 
-  const clearHistory = useCallback(() => {
-    setHistoryState(prevState => ({
-      past: [],
-      present: prevState.present,
-      future: []
-    }));
+  const clearHistory = React.useCallback(() => {
+    try {
+      setHistoryState(prevState => ({
+        past: [],
+        present: prevState.present || [],
+        future: []
+      }));
+    } catch (error) {
+      console.error('❌ Erro ao limpar histórico:', error);
+      captureError(error as Error, { context: 'clearHistory' });
+    }
   }, []);
 
   // Ações específicas com histórico automático
-  const createFolder = useCallback((folder: Folder, parentId?: string | number) => {
-    const newFolders = restoreFolderToTree(historyState.present, folder, parentId);
-    
-    addAction({
-      type: 'CREATE',
-      description: `Pasta "${folder.name}" criada`,
-      data: {
-        before: null,
-        after: folder,
-        targetId: folder.id,
-        parentId
+  const createFolder = React.useCallback((folder: Folder, parentId?: string | number) => {
+    try {
+      if (!folder || !folder.id) {
+        console.warn('⚠️ createFolder: pasta inválida:', folder);
+        return;
       }
-    });
 
-    setHistoryState(prevState => ({
-      ...prevState,
-      present: newFolders
-    }));
+      const newFolders = restoreFolderToTree(historyState.present || [], folder, parentId);
+      
+      addAction({
+        type: 'CREATE',
+        description: `Pasta "${folder.name || 'Sem nome'}" criada`,
+        data: {
+          before: null,
+          after: folder,
+          targetId: folder.id,
+          parentId
+        }
+      });
+
+      setHistoryState(prevState => ({
+        ...prevState,
+        present: newFolders
+      }));
+    } catch (error) {
+      console.error('❌ Erro ao criar pasta:', error);
+      captureError(error as Error, { context: 'createFolder', folderId: folder?.id });
+    }
   }, [historyState.present, addAction]);
 
-  const updateFolder = useCallback((folder: Folder) => {
-    const found = findFolderById(historyState.present, folder.id);
-    if (!found) return;
-
-    const newFolders = updateFolderInTree(historyState.present, folder);
-    
-    addAction({
-      type: 'UPDATE',
-      description: `Pasta "${folder.name}" atualizada`,
-      data: {
-        before: found.folder,
-        after: folder,
-        targetId: folder.id
+  const updateFolder = React.useCallback((folder: Folder) => {
+    try {
+      if (!folder || !folder.id) {
+        console.warn('⚠️ updateFolder: pasta inválida:', folder);
+        return;
       }
-    });
 
-    setHistoryState(prevState => ({
-      ...prevState,
-      present: newFolders
-    }));
-  }, [historyState.present, addAction]);
-
-  const deleteFolder = useCallback((folderId: string | number) => {
-    const found = findFolderById(historyState.present, folderId);
-    if (!found) return;
-
-    const newFolders = removeFolderFromTree(historyState.present, folderId);
-    
-    addAction({
-      type: 'DELETE',
-      description: `Pasta "${found.folder.name}" excluída`,
-      data: {
-        before: found.folder,
-        after: null,
-        targetId: folderId,
-        parentId: found.parent?.id
+      const found = findFolderById(historyState.present || [], folder.id);
+      if (!found) {
+        console.warn('⚠️ updateFolder: pasta não encontrada:', folder.id);
+        return;
       }
-    });
 
-    setHistoryState(prevState => ({
-      ...prevState,
-      present: newFolders
-    }));
-  }, [historyState.present, addAction]);
+      const newFolders = updateFolderInTree(historyState.present || [], folder);
+      
+      addAction({
+        type: 'UPDATE',
+        description: `Pasta "${folder.name || 'Sem nome'}" atualizada`,
+        data: {
+          before: found.folder,
+          after: folder,
+          targetId: folder.id
+        }
+      });
 
-  const moveFolder = useCallback((folderId: string | number, newParentId?: string | number | null, insertPosition?: { type: 'before' | 'after', targetId: string | number }) => {
+      setHistoryState(prevState => ({
+        ...prevState,
+        present: newFolders
+      }));
+    } catch (error) {
+      console.error('❌ Erro ao atualizar pasta:', error);
+      captureError(error as Error, { context: 'updateFolder', folderId: folder?.id });
+    }
+  }, [historyState.present, addAction, findFolderById]);
+
+  const deleteFolder = React.useCallback((folderId: string | number) => {
+    try {
+      if (!folderId && folderId !== 0) {
+        console.warn('⚠️ deleteFolder: ID inválido:', folderId);
+        return;
+      }
+
+      const found = findFolderById(historyState.present || [], folderId);
+      if (!found) {
+        console.warn('⚠️ deleteFolder: pasta não encontrada:', folderId);
+        return;
+      }
+
+      const newFolders = removeFolderFromTree(historyState.present || [], folderId);
+      
+      addAction({
+        type: 'DELETE',
+        description: `Pasta "${found.folder.name || 'Sem nome'}" excluída`,
+        data: {
+          before: found.folder,
+          after: null,
+          targetId: folderId,
+          parentId: found.parent?.id
+        }
+      });
+
+      setHistoryState(prevState => ({
+        ...prevState,
+        present: newFolders
+      }));
+    } catch (error) {
+      console.error('❌ Erro ao excluir pasta:', error);
+      captureError(error as Error, { context: 'deleteFolder', folderId });
+    }
+  }, [historyState.present, addAction, findFolderById]);
+
+  const moveFolder = React.useCallback((folderId: string | number, newParentId?: string | number | null, insertPosition?: { type: 'before' | 'after', targetId: string | number }) => {
     console.log('🚀 moveFolder iniciado:', { folderId, newParentId, insertPosition });
     
     const found = findFolderById(historyState.present, folderId);
@@ -605,15 +737,20 @@ export const useHistoryManager = (initialFolders: Folder[] = []): UseHistoryMana
   };
 
   // Função para salvar layout atual
-  const saveCurrentLayout = useCallback(async (layoutName: string) => {
+  const saveCurrentLayout = React.useCallback(async (layoutName: string) => {
     try {
+      if (!layoutName || typeof layoutName !== 'string') {
+        console.warn('⚠️ saveCurrentLayout: nome do layout inválido:', layoutName);
+        return false;
+      }
+
       const { getBrowserDatabase } = await import('../utils/browserDatabase');
       const db = await getBrowserDatabase();
       
-      const success = await db.saveCurrentLayout(layoutName, historyState.present, {
+      const success = await db.saveCurrentLayout(layoutName, historyState.present || [], {
         timestamp: new Date().toISOString(),
-        totalFolders: historyState.present.length,
-        responsibles: Array.from(new Set(historyState.present.map(f => f.responsible).filter(Boolean)))
+        totalFolders: (historyState.present || []).length,
+        responsibles: Array.from(new Set((historyState.present || []).map(f => f.responsible).filter(Boolean)))
       });
 
       if (success) {
@@ -621,35 +758,46 @@ export const useHistoryManager = (initialFolders: Folder[] = []): UseHistoryMana
           type: 'BATCH',
           description: `Layout "${layoutName}" salvo com sucesso`,
           data: {
-            before: historyState.present,
-            after: historyState.present
+            before: historyState.present || [],
+            after: historyState.present || []
           }
         });
         return true;
       }
       return false;
     } catch (error) {
-      console.error('Erro ao salvar layout:', error);
+      console.error('❌ Erro ao salvar layout:', error);
+      captureError(error as Error, { context: 'saveCurrentLayout', layoutName });
       return false;
     }
   }, [historyState.present, addAction]);
 
-  const importFolders = useCallback((importedFolders: Folder[]) => {
-    const newFolders = [...historyState.present, ...importedFolders];
-    
-    addAction({
-      type: 'IMPORT',
-      description: `${importedFolders.length} pasta(s) importada(s)`,
-      data: {
-        before: historyState.present,
-        after: importedFolders
+  const importFolders = React.useCallback((importedFolders: Folder[]) => {
+    try {
+      if (!Array.isArray(importedFolders)) {
+        console.warn('⚠️ importFolders: entrada não é array:', importedFolders);
+        return;
       }
-    });
 
-    setHistoryState(prevState => ({
-      ...prevState,
-      present: newFolders
-    }));
+      const newFolders = [...(historyState.present || []), ...importedFolders];
+      
+      addAction({
+        type: 'IMPORT',
+        description: `${importedFolders.length} pasta(s) importada(s)`,
+        data: {
+          before: historyState.present || [],
+          after: importedFolders
+        }
+      });
+
+      setHistoryState(prevState => ({
+        ...prevState,
+        present: newFolders
+      }));
+    } catch (error) {
+      console.error('❌ Erro ao importar pastas:', error);
+      captureError(error as Error, { context: 'importFolders' });
+    }
   }, [historyState.present, addAction]);
 
   return {
