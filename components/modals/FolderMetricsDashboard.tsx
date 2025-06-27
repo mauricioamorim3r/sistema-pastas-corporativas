@@ -6,6 +6,8 @@ import {
 } from 'lucide-react';
 import { Folder as FolderType } from '../../types';
 import { localFolderManager, SavedFileInfo } from '../../utils/localFolderManager';
+import { useRateLimit } from '../../utils/rateLimiter';
+import logger from '../../utils/secureLogger';
 
 interface UploadedFile {
   id: string;
@@ -70,8 +72,11 @@ export const FolderMetricsDashboard: React.FC<FolderMetricsDashboardProps> = ({
   const [isDragOver, setIsDragOver] = useState(false);
   const [saveMode, setSaveMode] = useState<'browser' | 'local'>('browser');
   const [uploadStatus, setUploadStatus] = useState<'idle' | 'uploading' | 'success' | 'error'>('idle');
-  const [statusMessage, setStatusMessage] = useState('');
+  const [statusMessage, setStatusMessage] = useState<string>('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Rate limiting hook
+  const { checkUploadLimit } = useRateLimit();
 
   // Verifica suporte do sistema local uma única vez
   const isLocalSystemSupported = localFolderManager.isSupported();
@@ -91,8 +96,27 @@ export const FolderMetricsDashboard: React.FC<FolderMetricsDashboardProps> = ({
 
   // Função para processar arquivos
   const processFiles = async (files: FileList) => {
+    // Verificar rate limiting primeiro
+    const rateLimitResult = checkUploadLimit();
+    if (!rateLimitResult.allowed) {
+      setUploadStatus('error');
+      setStatusMessage(rateLimitResult.message || 'Muitos uploads recentes. Aguarde um momento.');
+      logger.security('Upload bloqueado por rate limit', 'medium', { 
+        remaining: rateLimitResult.remaining,
+        resetTime: rateLimitResult.resetTime,
+        fileCount: files.length
+      });
+      return;
+    }
+
     setUploadStatus('uploading');
     setStatusMessage('');
+    
+    logger.audit('Upload iniciado', { 
+      fileCount: files.length, 
+      saveMode,
+      remaining: rateLimitResult.remaining 
+    });
 
     for (const file of Array.from(files)) {
       // Limite de 10MB por arquivo para modo browser

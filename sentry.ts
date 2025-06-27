@@ -1,10 +1,18 @@
 import * as Sentry from '@sentry/react';
 
 export const initSentry = () => {
+  // Validar se DSN está configurado corretamente
+  const sentryDsn = import.meta.env.VITE_SENTRY_DSN;
+  
+  if (!sentryDsn) {
+    console.warn('⚠️ SENTRY_DSN não configurado. Monitoramento de erros desabilitado.');
+    return;
+  }
+
   Sentry.init({
-    dsn: import.meta.env.VITE_SENTRY_DSN || 'https://d0cac82f42420082174958c96f05e409@o4509531701706752.ingest.us.sentry.io/4509532509241344', // DSN do Sistema Pastas Corporativas
+    dsn: sentryDsn,
     environment: import.meta.env.MODE || 'development',
-    tracesSampleRate: 1.0,
+    tracesSampleRate: import.meta.env.MODE === 'production' ? 0.1 : 1.0, // Reduzir sampling em produção
     beforeSend(event) {
       // Em desenvolvimento, mostra erros no console também
       if (import.meta.env.MODE === 'development') {

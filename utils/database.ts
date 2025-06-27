@@ -1,8 +1,57 @@
 import { neon } from '@neondatabase/serverless';
 import { Folder } from '../types';
+import logger from './secureLogger';
 
-// Configuração da conexão com Neon
+// Configuração da conexão com Neon com timeout
 const sql = neon('postgresql://neondb_owner:npg_6PfsIabVdSB2@ep-still-haze-a5ct2l39-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require');
+
+// Configurações de timeout
+const TIMEOUT_CONFIG = {
+  short: 5000,   // 5s para operações simples
+  medium: 15000, // 15s para operações médias
+  long: 30000    // 30s para operações complexas
+};
+
+/**
+ * Wrapper para operações com timeout
+ */
+async function withTimeout<T>(
+  operation: Promise<T>, 
+  timeoutMs: number,
+  operationName: string
+): Promise<T> {
+  const startTime = Date.now();
+  
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => {
+      const duration = Date.now() - startTime;
+      logger.warn(`Timeout em operação: ${operationName}`, { 
+        timeout: timeoutMs, 
+        duration 
+      });
+      reject(new Error(`Timeout: ${operationName} excedeu ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+
+  try {
+    const result = await Promise.race([operation, timeoutPromise]);
+    const duration = Date.now() - startTime;
+    
+    // Log performance para operações lentas
+    if (duration > 1000) {
+      logger.performance(operationName, duration);
+    }
+    
+    return result;
+  } catch (error) {
+    const duration = Date.now() - startTime;
+    logger.error(`Erro em operação de banco: ${operationName}`, error as Error, { 
+      duration,
+      timeout: timeoutMs 
+    });
+    throw error;
+  }
+}
 
 // Tipos específicos do banco
 export interface DbFolder {
@@ -66,10 +115,11 @@ export function dbFolderToFolder(dbFolder: DbFolder): Folder {
  */
 export async function testConnection(): Promise<boolean> {
   try {
-    const result = await sql`SELECT 1 as connected`;
+    const operation = sql`SELECT 1 as connected`;
+    const result = await withTimeout(operation, TIMEOUT_CONFIG.short, 'testConnection');
     return result[0]?.connected === 1;
   } catch (error) {
-    console.error('Erro ao testar conexão:', error);
+    logger.error('Erro ao testar conexão com banco', error as Error);
     return false;
   }
 }
@@ -79,13 +129,14 @@ export async function testConnection(): Promise<boolean> {
  */
 export async function getAllFolders(): Promise<DbFolder[]> {
   try {
-    const result = await sql`
+    const operation = sql`
       SELECT * FROM folders
       ORDER BY parent_id NULLS FIRST, name ASC
     `;
+    const result = await withTimeout(operation, TIMEOUT_CONFIG.medium, 'getAllFolders');
     return result as DbFolder[];
   } catch (error) {
-    console.error('Erro ao buscar pastas:', error);
+    logger.error('Erro ao buscar pastas do banco', error as Error);
     throw error;
   }
 }
@@ -95,14 +146,15 @@ export async function getAllFolders(): Promise<DbFolder[]> {
  */
 export async function getFolderByUuid(uuid: string): Promise<DbFolder | null> {
   try {
-    const result = await sql`
+    const operation = sql`
       SELECT * FROM folders
       WHERE uuid = ${uuid}
       LIMIT 1
     `;
+    const result = await withTimeout(operation, TIMEOUT_CONFIG.short, 'getFolderByUuid');
     return result[0] as DbFolder || null;
   } catch (error) {
-    console.error('Erro ao buscar pasta:', error);
+    logger.error('Erro ao buscar pasta por UUID', error as Error, { uuid });
     throw error;
   }
 }

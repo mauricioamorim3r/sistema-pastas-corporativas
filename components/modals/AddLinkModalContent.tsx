@@ -17,8 +17,10 @@ export const AddLinkModalContent: React.FC<AddLinkModalContentProps> = ({
 
   const isValidUrl = (string: string) => {
     try {
-      new URL(string);
-      return true;
+      const url = new URL(string);
+      // Validar apenas protocolos seguros
+      const allowedProtocols = ['http:', 'https:'];
+      return allowedProtocols.includes(url.protocol);
     } catch (_) {
       return false;
     }

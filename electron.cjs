@@ -125,34 +125,8 @@ function createWindow() {
                 contextIsolation: true
               }
             });
-            aboutWindow.loadURL('data:text/html;charset=utf-8,' + encodeURI(`
-              <html>
-                <head>
-                  <title>Sobre</title>
-                  <style>
-                    body { 
-                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
-                      text-align: center; 
-                      padding: 50px; 
-                      margin: 0;
-                      background: #f5f5f5;
-                    }
-                    h1 { color: #333; margin-bottom: 10px; }
-                    p { color: #666; margin: 5px 0; }
-                    .version { font-weight: bold; color: #007acc; }
-                  </style>
-                </head>
-                <body>
-                  <h1>🗂️ Pastas Corporativas</h1>
-                  <p>Sistema de Gerenciamento de Pastas</p>
-                  <p class="version">Versão 1.0.0</p>
-                  <p>Desenvolvido com Electron + React + Vite</p>
-                  <p style="margin-top: 30px; font-size: 12px; color: #999;">
-                    © 2025 - Todos os direitos reservados
-                  </p>
-                </body>
-              </html>
-            `));
+            // Carregar arquivo HTML estático para evitar XSS
+            aboutWindow.loadFile(path.join(__dirname, 'about.html'));
             aboutWindow.once('ready-to-show', () => {
               aboutWindow.show();
             });
