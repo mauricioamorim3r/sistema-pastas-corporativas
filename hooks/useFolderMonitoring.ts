@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { FolderMonitoring, FolderNotification, MonitoringTimer, MonitoringSettings } from '../types';
 
 // Simulação de File System Watcher (em produção seria uma API real)

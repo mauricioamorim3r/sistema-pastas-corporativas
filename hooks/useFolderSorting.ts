@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Folder } from '../types';
 import { SortConfig, SortField, SortDirection } from '../components/FolderSortControls';
 
