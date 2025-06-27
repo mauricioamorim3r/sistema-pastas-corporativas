@@ -3,11 +3,11 @@ import { defineConfig } from 'vite';
 import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
-  plugins: [tailwindcss()],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, '.'),
-    }
+      plugins: [tailwindcss()],
+      resolve: {
+        alias: {
+          '@': path.resolve(__dirname, '.'),
+        }
   },
   build: {
     target: 'es2015',
@@ -19,6 +19,6 @@ export default defineConfig({
           vendor: ['react', 'react-dom']
         }
       }
-    }
+      }
   }
 });

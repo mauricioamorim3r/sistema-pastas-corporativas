@@ -22,9 +22,11 @@
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",
+    "@neondatabase/serverless": "^1.0.1",
     "@sentry/react": "^9.31.0",
     "@sentry/tracing": "^7.120.3",
     "@tailwindcss/vite": "^4.1.10",
+    "@types/pg": "^8.15.4",
     "lucide-react": "^0.522.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

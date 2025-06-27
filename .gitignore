@@ -40,3 +40,5 @@ build-executavel.bat
 build/
 out/
 .vercel
+
+.fake

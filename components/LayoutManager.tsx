@@ -301,8 +301,8 @@ export const LayoutManager: React.FC<LayoutManagerProps> = ({
       console.error('Erro ao remover layout:', error);
       
       // Fallback: remover apenas da lista local
-      const updatedLayouts = savedLayouts.filter(layout => layout.id !== layoutId);
-      saveLayoutsToStorage(updatedLayouts);
+    const updatedLayouts = savedLayouts.filter(layout => layout.id !== layoutId);
+    saveLayoutsToStorage(updatedLayouts);
     }
   };
 

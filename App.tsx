@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import {
   Folder as FolderIcon,
   ChevronDown, ChevronRight, Palette, FolderPlus, ExternalLink, Trash2,
@@ -26,11 +26,13 @@ import { ImportModalContent } from './components/modals/ImportModalContent';
 import { ResizablePanels, ResizablePanelsRef } from './components/ResizablePanels';
 import { PanelSizePresets } from './components/PanelSizePresets';
 import { ResponsiveWrapper } from './components/ResponsiveWrapper';
-import { LayoutManager } from './components/LayoutManager';
-import { FavoritesPanel } from './components/FavoritesPanel';
+// Lazy load para componentes pesados
+const LayoutManager = lazy(() => import('./components/LayoutManager').then(module => ({ default: module.LayoutManager })));
+import { FavoritesPanel, useFavorites } from './components/FavoritesPanel';
 import { HistoryPanel } from './components/HistoryPanel';
 import { useHistoryManager } from './hooks/useHistoryManager';
-import { useFavorites } from './hooks/useFavorites';
+import { useFolderSorting } from './hooks/useFolderSorting';
+import { FolderSortControls } from './components/FolderSortControls';
 import { EditableHeader } from './components/EditableHeader';
 import { FolderMetricsDashboard } from './components/modals/FolderMetricsDashboard';
 import { EditFolderModalContent } from './components/modals/EditFolderModalContent';
@@ -38,9 +40,7 @@ import { AddLinkModalContent } from './components/modals/AddLinkModalContent';
 import MonitoringPanel from './components/MonitoringPanel';
 import { SettingsModalContent } from './components/modals/SettingsModalContent';
 import { IconRenderer } from './utils/iconUtils';
-
-// Novos imports para funcionalidades implementadas
-import SimpleSearchPanel, { SearchResult, SearchFilters } from './components/SimpleSearchPanel';
+import { captureError } from './sentry';
 
 // Helper function to recursively update folder properties
 const updateFolderRecursively = (
@@ -123,17 +123,6 @@ const App: React.FC = () => {
   // Hook para favoritos (será usado nas novas funcionalidades)
   const { isFavorite, toggleFavorite } = useFavorites();
 
-  // Novos hooks para as funcionalidades implementadas (serão usados nas próximas implementações)
-  // const { sortedFolders, sortConfig, updateSort } = useFolderSorting(folders);
-  // const { 
-  //   backups, 
-  //   stats, 
-  //   createManualBackup, 
-  //   restoreBackup,
-  //   config: backupConfig,
-  //   updateConfig: updateBackupConfig
-  // } = useAutoBackup();
-
   const [selectedFolder, setSelectedFolder] = useState<Folder | null>(null);
   
   // Estados para drag and drop
@@ -152,6 +141,15 @@ const App: React.FC = () => {
   const resizablePanelsRef = React.useRef<ResizablePanelsRef>(null);
   const navigatorTitleInputRef = React.useRef<HTMLInputElement>(null);
 
+  // Cleanup para dragOverTimer
+  useEffect(() => {
+    return () => {
+      if (dragOverTimer) {
+        clearTimeout(dragOverTimer);
+      }
+    };
+  }, [dragOverTimer]);
+
   // Novos estados para as funcionalidades
   const [showLayoutManager, setShowLayoutManager] = useState<boolean>(false);
   const [showFavoritesPanel, setShowFavoritesPanel] = useState<boolean>(false);
@@ -159,12 +157,6 @@ const App: React.FC = () => {
   const [showImportModal, setShowImportModal] = useState<boolean>(false);
   const [showMonitoringPanel, setShowMonitoringPanel] = useState<boolean>(false);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
-
-  // Estados para busca avançada
-  const [showAdvancedSearch, setShowAdvancedSearch] = useState<boolean>(false);
-  const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
-  const [searchFilters, setSearchFilters] = useState<SearchFilters | null>(null);
-  const [isSearchMode, setIsSearchMode] = useState<boolean>(false);
 
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const savedTheme = localStorage.getItem('theme');
@@ -196,7 +188,19 @@ const App: React.FC = () => {
   // Estados para dados dinâmicos
   const [allResponsibles, setAllResponsibles] = useState<string[]>(getAllResponsibles());
 
-  // const [sortOrder, setSortOrder] = useState<string>('Nome (A-Z)'); // Sort not implemented yet
+  // Sistema de Ordenação (implementado de forma segura)
+  const {
+    currentCriteria,
+    currentCriteriaLabel,
+    isInCustomMode,
+    canApplyAutoSort,
+    availableCriteria,
+    changeSortCriteria,
+    resetToAutoSort
+  } = useFolderSorting();
+
+  // Log de debug seguro (apenas para confirmar que o hook está funcionando)
+  console.log('🔧 Sistema de ordenação ativo:', currentCriteriaLabel);
 
   // Modal states
   const [showColorPickerModal, setShowColorPickerModal] = useState<boolean>(false);
@@ -268,19 +272,6 @@ const App: React.FC = () => {
   // Função para atualizar dados dinâmicos
   const refreshDynamicData = useCallback(() => {
     setAllResponsibles(getAllResponsibles());
-  }, []);
-
-  // Handler para resultados da busca avançada
-  const handleSearchResults = useCallback((results: SearchResult[]) => {
-    setSearchResults(results);
-    setIsSearchMode(results.length > 0 || Boolean(searchFilters && Object.values(searchFilters).some(v => 
-      Array.isArray(v) ? v.length > 0 : (v !== null && v !== '')
-    )));
-  }, [searchFilters]);
-
-  // Handler para mudanças nos filtros de busca
-  const handleFiltersChange = useCallback((filters: SearchFilters) => {
-    setSearchFilters(filters);
   }, []); 
 
   useEffect(() => {
@@ -361,22 +352,100 @@ const App: React.FC = () => {
     }
   };
 
+  // Função utilitária para detectar tipos de caminho
+  const detectPathType = (path: string) => {
+    // URLs HTTP/HTTPS
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return { type: 'url', canOpen: true, method: 'direct' };
+    }
+    
+    // Caminhos UNC de rede (\\servidor\pasta)
+    if (path.startsWith('\\\\')) {
+      return { 
+        type: 'network-unc', 
+        canOpen: false, 
+        method: 'electron-only',
+        message: 'Caminho UNC de rede detectado. Funciona apenas na versão desktop (Electron).'
+      };
+    }
+    
+    // Drives mapeados (Z:\pasta, \\servidor\pasta mapeado)
+    if (/^[A-Z]:/i.test(path)) {
+      const isLikelyMapped = /^[H-Z]:/i.test(path); // Drives H-Z são comumente mapeados
+      return { 
+        type: isLikelyMapped ? 'mapped-drive' : 'local-drive',
+        canOpen: false,
+        method: 'electron-only',
+        message: isLikelyMapped 
+          ? 'Drive mapeado detectado. Funciona apenas na versão desktop (Electron).'
+          : 'Caminho local detectado. Funciona apenas na versão desktop (Electron).'
+      };
+    }
+    
+    // Caminhos relativos ou outros formatos
+    return { 
+      type: 'unknown', 
+      canOpen: false, 
+      method: 'file-protocol',
+      message: 'Tipo de caminho não reconhecido. Tentando protocolo file://.'
+    };
+  };
+
   const handleOpenFolderSystem = (folder: Folder) => {
     if (folder.link) {
-      // Se tem link, tentar abrir
+      // Detectar tipo de caminho
+      const pathInfo = detectPathType(folder.link);
+      
+      console.log('🔍 Detectando caminho:', { 
+        path: folder.link, 
+        type: pathInfo.type, 
+        canOpen: pathInfo.canOpen 
+      });
+
       try {
-        // Verificar se é URL ou caminho
-        if (folder.link.startsWith('http://') || folder.link.startsWith('https://')) {
+        if (pathInfo.canOpen) {
+          // URLs HTTP/HTTPS - funcionam perfeitamente
           window.open(folder.link, '_blank');
           showToast(`Abrindo link: ${folder.link}`, 'info');
         } else {
-          // É um caminho do sistema - tentar abrir usando protocolo file://
-          const encodedPath = encodeURI(folder.link.replace(/\\/g, '/'));
-          window.open(`file:///${encodedPath}`, '_blank');
-          showToast(`Abrindo caminho: ${folder.link}`, 'info');
+          // Caminhos que precisam de tratamento especial
+          if (pathInfo.type === 'network-unc' || pathInfo.type === 'mapped-drive') {
+            // Mostrar aviso específico para caminhos de rede
+            showToast(pathInfo.message || 'Caminho de rede detectado', 'warning');
+            
+            // Oferecer alternativas
+            const shouldTryAnyway = window.confirm(
+              `${pathInfo.message}\n\n` +
+              `Caminho: ${folder.link}\n\n` +
+              `Opções disponíveis:\n` +
+              `• Use a versão desktop (Electron) para acesso completo\n` +
+              `• Configure um servidor web para servir arquivos de rede\n` +
+              `• Mapeie para uma URL HTTP acessível\n\n` +
+              `Deseja tentar abrir mesmo assim? (pode não funcionar)`
+            );
+            
+            if (shouldTryAnyway) {
+              // Tentar protocolo file:// mesmo sabendo das limitações
+              const encodedPathNetwork = encodeURI((folder.link || '').replace(/\\/g, '/'));
+              window.open(`file:///${encodedPathNetwork}`, '_blank');
+              showToast('Tentativa realizada. Se não abrir, use a versão desktop.', 'info');
+            }
+          } else {
+            // Outros tipos - tentar protocolo file://
+            const encodedPathOther = encodeURI((folder.link || '').replace(/\\/g, '/'));
+            window.open(`file:///${encodedPathOther}`, '_blank');
+            showToast(pathInfo.message || 'Tipo de caminho não reconhecido', 'warning');
+          }
         }
       } catch (error) {
-        showToast('Erro ao abrir o link/caminho', 'error');
+        console.error('❌ Erro ao abrir caminho:', error);
+        showToast(`Erro ao abrir o caminho. Tipo: ${pathInfo.type}`, 'error');
+        captureError(error as Error, { 
+          context: 'openFolderSystem', 
+          folderLink: folder.link,
+          folderName: folder.name,
+          pathType: pathInfo.type
+        });
       }
     } else {
       // Se não tem link, abrir modal para cadastrar
@@ -724,10 +793,10 @@ const App: React.FC = () => {
   const countTotalSubfolders = (folderList: Folder[]): number => {
     let count = 0;
     for (const folder of folderList) {
-      if (folder.subFolders) {
-        count += folder.subFolders.length;
-        count += countTotalSubfolders(folder.subFolders);
-      }
+        if (folder.subFolders) {
+            count += folder.subFolders.length;
+            count += countTotalSubfolders(folder.subFolders);
+        }
     }
     return count;
   };
@@ -1389,22 +1458,24 @@ const App: React.FC = () => {
               <Layout size={20} />
             </button>
             
-            <LayoutManager
-              currentLeftWidth={currentPanelWidth}
-              currentIsDarkMode={isDarkMode}
-              currentIsDetailsPanelOpen={isDetailsPanelOpen}
-              currentFolders={folders}
-              currentExpandedFolders={expandedFolders}
-              currentSelectedFolder={selectedFolder || undefined}
-              currentSearchQuery={searchQuery}
-              currentSelectedResponsible={selectedResponsible}
-              currentShowFavoritesPanel={showFavoritesPanel}
-              currentShowHistoryPanel={showHistoryPanel}
-              currentShowMonitoringPanel={showMonitoringPanel}
-              onApplyLayout={handleApplyLayout}
-              isVisible={showLayoutManager}
-              onClose={() => setShowLayoutManager(false)}
-            />
+            <Suspense fallback={<div className="p-2 text-sm text-gray-500">Carregando gerenciador de layouts...</div>}>
+              <LayoutManager
+                currentLeftWidth={currentPanelWidth}
+                currentIsDarkMode={isDarkMode}
+                currentIsDetailsPanelOpen={isDetailsPanelOpen}
+                currentFolders={folders}
+                currentExpandedFolders={expandedFolders}
+                currentSelectedFolder={selectedFolder || undefined}
+                currentSearchQuery={searchQuery}
+                currentSelectedResponsible={selectedResponsible}
+                currentShowFavoritesPanel={showFavoritesPanel}
+                currentShowHistoryPanel={showHistoryPanel}
+                currentShowMonitoringPanel={showMonitoringPanel}
+                onApplyLayout={handleApplyLayout}
+                isVisible={showLayoutManager}
+                onClose={() => setShowLayoutManager(false)}
+              />
+            </Suspense>
           </div>
           
 
@@ -1442,18 +1513,17 @@ const App: React.FC = () => {
                         {allResponsibles.map(r => <option key={r} value={r} className="bg-white dark:bg-gray-700">{r}</option>)}
                     </select>
                 </div>
-                <button
-                    onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
-                    className={`px-3 py-1.5 rounded-lg flex items-center text-xs font-medium shadow-xs transition-colors ${
-                        showAdvancedSearch || isSearchMode
-                            ? 'bg-blue-600 dark:bg-blue-500 text-white hover:bg-blue-700 dark:hover:bg-blue-600'
-                            : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                    }`}
-                    title="Busca Avançada"
-                >
-                    <Search size={16} className="mr-1" />
-                    Busca Avançada
-                </button>
+                
+                {/* Controle de Ordenação */}
+                <FolderSortControls
+                  currentCriteria={currentCriteria}
+                  currentCriteriaLabel={currentCriteriaLabel}
+                  isInCustomMode={isInCustomMode}
+                  canApplyAutoSort={canApplyAutoSort}
+                  availableCriteria={availableCriteria}
+                  onChangeCriteria={changeSortCriteria}
+                  onResetToAutoSort={resetToAutoSort}
+                />
             </div>
             <div className="flex justify-end space-x-2 w-full sm:w-auto sm:ml-auto">
                 <button onClick={handleCollapseAll} className="px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 flex items-center text-xs font-medium shadow-xs"><ChevronUp size={16} className="mr-1" />Recolher</button>
@@ -1477,23 +1547,6 @@ const App: React.FC = () => {
             </div>
         </div>
       </div>
-
-      {/* Painel de Busca Avançada */}
-      {showAdvancedSearch && (
-        <div className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 sticky top-[140px] z-10">
-          <div className="p-4">
-            <SimpleSearchPanel
-              folders={folders}
-              favorites={Object.keys(localStorage).filter(key => key.startsWith('favorite-')).map(key => key.replace('favorite-', ''))}
-              onResults={handleSearchResults}
-              onFiltersChange={handleFiltersChange}
-              isExpanded={true}
-              onToggleExpanded={() => {}}
-              className="max-w-none"
-            />
-          </div>
-        </div>
-      )}
 
       {/* Main Content Area */}
       <main className="overflow-hidden flex-1 p-1 sm:p-2">
@@ -1562,32 +1615,19 @@ const App: React.FC = () => {
                 onDrop={(e) => handleDrop(e)}
               >
                 <div className="space-y-1">
-                  {/* Resultados da busca avançada ou pastas filtradas normalmente */}
-                  {isSearchMode && searchResults.length > 0 ? (
-                    <>
-                      <div className="p-3 mb-4 bg-blue-50 rounded-lg border border-blue-200 dark:bg-blue-900/30 dark:border-blue-700">
-                        <div className="flex items-center space-x-2 text-blue-700 dark:text-blue-300">
-                          <Search size={16} />
-                          <span className="font-medium">Resultados da busca: {searchResults.length} pasta(s) encontrada(s)</span>
-                        </div>
-                      </div>
-                      {searchResults.map(folder => renderFolderItem(folder, 0))}
-                    </>
-                  ) : (
-                    filteredFolders.map(folder => renderFolderItem(folder, 0))
-                  )}
-                  
+                  {filteredFolders.map(folder => renderFolderItem(folder, 0))}
+                
                   {/* Zona adicional de drop para área raiz */}
-                  {draggedFolder && (
-                    <div 
+                {draggedFolder && (
+                  <div 
                       className={`mt-4 p-6 border-2 border-dashed rounded-lg transition-all duration-200 ${
                         dragOverFolder === 'root' 
                           ? 'border-blue-400 bg-blue-50 dark:bg-blue-900/20' 
                           : 'border-gray-300 dark:border-gray-600 opacity-50'
                       }`}
-                      onDragOver={(e) => handleDragOver(e)}
-                      onDrop={(e) => handleDrop(e)}
-                    >
+                    onDragOver={(e) => handleDragOver(e)}
+                    onDrop={(e) => handleDrop(e)}
+                  >
                       <div className="flex justify-center items-center text-gray-500 dark:text-gray-400">
                         <span className="mr-2 text-2xl">🎯</span>
                         <span className="text-sm font-medium">

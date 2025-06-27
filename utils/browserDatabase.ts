@@ -1,9 +1,21 @@
 import { FolderType, LayoutTemplate } from '../types';
+import { captureError } from '../sentry';
 
 export class BrowserDatabaseManager {
   private dbName = 'organizador-db';
-  private dbVersion = 1;
+  private dbVersion = 2; // Incrementar versão para migração
   private db: IDBDatabase | null = null;
+  
+  // Chaves específicas para migração do localStorage
+  private readonly MIGRATION_KEYS = [
+    'favorite-folders',
+    'color-settings', 
+    'appTitle',
+    'appLogo',
+    'folderNavigatorTitle',
+    'folder-monitoring-settings',
+    'folder-monitorings'
+  ] as const;
 
   async init(): Promise<void> {
     return new Promise((resolve, reject) => {
@@ -18,6 +30,7 @@ export class BrowserDatabaseManager {
 
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
+        const oldVersion = event.oldVersion;
 
         // Object store para templates
         if (!db.objectStoreNames.contains('templates')) {
@@ -41,6 +54,25 @@ export class BrowserDatabaseManager {
           const monitoringStore = db.createObjectStore('monitoring', { keyPath: 'id', autoIncrement: true });
           monitoringStore.createIndex('folderId', 'folderId', { unique: false });
           monitoringStore.createIndex('timestamp', 'timestamp', { unique: false });
+        }
+
+        // MIGRAÇÃO SEGURA: Novos object stores para localStorage migrado (versão 2)
+        if (oldVersion < 2) {
+          console.log('🔄 Iniciando migração segura localStorage → IndexedDB');
+          
+          // Object store para dados migrados do localStorage
+          if (!db.objectStoreNames.contains('localStorage_migrated')) {
+            const localStorageStore = db.createObjectStore('localStorage_migrated', { keyPath: 'key' });
+            localStorageStore.createIndex('migratedAt', 'migratedAt', { unique: false });
+            localStorageStore.createIndex('originalSource', 'originalSource', { unique: false });
+          }
+
+          // Object store para backups de segurança
+          if (!db.objectStoreNames.contains('migration_backups')) {
+            const backupStore = db.createObjectStore('migration_backups', { keyPath: 'id', autoIncrement: true });
+            backupStore.createIndex('timestamp', 'timestamp', { unique: false });
+            backupStore.createIndex('type', 'type', { unique: false });
+          }
         }
       };
     });
@@ -67,7 +99,10 @@ export class BrowserDatabaseManager {
 
       return true;
     } catch (error) {
-      console.error('Erro ao salvar template:', error);
+      if (import.meta.env.MODE === 'development') {
+        console.error('Erro ao salvar template:', error);
+      }
+      captureError(error as Error, { context: 'saveTemplate', templateName: template.name });
       return false;
     }
   }
@@ -97,7 +132,10 @@ export class BrowserDatabaseManager {
 
       return true;
     } catch (error) {
-      console.error('Erro ao atualizar template:', error);
+      if (import.meta.env.MODE === 'development') {
+        console.error('Erro ao atualizar template:', error);
+      }
+      captureError(error as Error, { context: 'updateTemplate', templateName });
       return false;
     }
   }
@@ -115,7 +153,10 @@ export class BrowserDatabaseManager {
         request.onerror = () => reject(request.error);
       });
     } catch (error) {
-      console.error('Erro ao carregar template:', error);
+      if (import.meta.env.MODE === 'development') {
+        console.error('Erro ao carregar template:', error);
+      }
+      captureError(error as Error, { context: 'loadTemplate', templateName: name });
       return null;
     }
   }
@@ -1214,6 +1255,331 @@ export class BrowserDatabaseManager {
       console.log('✅ Templates padrão adicionados ao IndexedDB');
     } catch (error) {
       console.error('Erro ao adicionar templates padrão:', error);
+    }
+  }
+
+  // ==========================================
+  // SISTEMA DE MIGRAÇÃO SEGURA - localStorage → IndexedDB
+  // ==========================================
+
+  // ETAPA 1: Verificar se migração é necessária e segura
+  async checkMigrationStatus(): Promise<{
+    needsMigration: boolean;
+    hasBackup: boolean;
+    itemsToMigrate: number;
+    migrationComplete: boolean;
+    errors: string[];
+  }> {
+    const result = {
+      needsMigration: false,
+      hasBackup: false,
+      itemsToMigrate: 0,
+      migrationComplete: false,
+      errors: [] as string[]
+    };
+
+    if (!this.db) {
+      result.errors.push('IndexedDB não inicializado');
+      return result;
+    }
+
+    try {
+      // Conta itens no localStorage que precisam ser migrados
+      const itemsInLocalStorage = this.MIGRATION_KEYS.filter(key => 
+        localStorage.getItem(key) !== null
+      );
+      result.itemsToMigrate = itemsInLocalStorage.length;
+
+      // Verifica se já existe backup
+      const backupTransaction = this.db.transaction(['migration_backups'], 'readonly');
+      const backupStore = backupTransaction.objectStore('migration_backups');
+      
+      const backupCount = await new Promise<number>((resolve, reject) => {
+        const request = backupStore.count();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+      result.hasBackup = backupCount > 0;
+
+      // Verifica se migração já foi feita
+      const migrationTransaction = this.db.transaction(['localStorage_migrated'], 'readonly');
+      const migrationStore = migrationTransaction.objectStore('localStorage_migrated');
+      
+      const migratedItems = await new Promise<any[]>((resolve, reject) => {
+        const request = migrationStore.getAll();
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+
+      const validatedItems = migratedItems.filter(item => item.validated);
+      result.migrationComplete = validatedItems.length === this.MIGRATION_KEYS.length;
+
+      // Determina se migração é necessária
+      result.needsMigration = result.itemsToMigrate > 0 && !result.migrationComplete;
+
+    } catch (error) {
+      result.errors.push(`Erro ao verificar status: ${error}`);
+    }
+
+    return result;
+  }
+
+  // ETAPA 2: Criar backup COMPLETO do localStorage
+  async createSafeBackup(): Promise<{ success: boolean; backupId?: number; error?: string }> {
+    if (!this.db) return { success: false, error: 'IndexedDB não inicializado' };
+
+    try {
+      const backup = {
+        timestamp: new Date().toISOString(),
+        version: '1.0',
+        type: 'complete-backup',
+        data: {} as Record<string, string>
+      };
+
+      // Copia TODOS os dados do localStorage
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key) {
+          backup.data[key] = localStorage.getItem(key) || '';
+        }
+      }
+
+      const transaction = this.db.transaction(['migration_backups'], 'readwrite');
+      const store = transaction.objectStore('migration_backups');
+      
+      const backupId = await new Promise<number>((resolve, reject) => {
+        const request = store.add(backup);
+        request.onsuccess = () => resolve(request.result as number);
+        request.onerror = () => reject(request.error);
+      });
+
+      console.log('✅ Backup completo criado com ID:', backupId);
+      return { success: true, backupId };
+    } catch (error) {
+      const errorMsg = `Erro ao criar backup: ${error}`;
+      console.error('❌', errorMsg);
+      return { success: false, error: errorMsg };
+    }
+  }
+
+  // ETAPA 3: Migrar UMA chave por vez (super seguro)
+  async migrateSingleKey(key: string): Promise<{
+    success: boolean;
+    validated: boolean;
+    error?: string;
+  }> {
+    if (!this.db) return { success: false, validated: false, error: 'IndexedDB não inicializado' };
+
+    try {
+      const value = localStorage.getItem(key);
+      if (value === null) {
+        return { success: false, validated: false, error: `Chave '${key}' não encontrada` };
+      }
+
+      // Backup individual desta chave
+      const singleBackup = {
+        timestamp: new Date().toISOString(),
+        type: 'single-key-backup',
+        key,
+        value
+      };
+
+      const backupTransaction = this.db.transaction(['migration_backups'], 'readwrite');
+      const backupStore = backupTransaction.objectStore('migration_backups');
+      await new Promise<void>((resolve, reject) => {
+        const request = backupStore.add(singleBackup);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+
+      // Migra para IndexedDB
+      const migrationData = {
+        key,
+        value,
+        originalSource: 'localStorage',
+        migratedAt: new Date().toISOString(),
+        validated: false
+      };
+
+      const migrationTransaction = this.db.transaction(['localStorage_migrated'], 'readwrite');
+      const migrationStore = migrationTransaction.objectStore('localStorage_migrated');
+      
+      await new Promise<void>((resolve, reject) => {
+        const request = migrationStore.put(migrationData);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+
+      // VALIDAÇÃO: Verifica se o dado foi salvo corretamente
+      const readTransaction = this.db.transaction(['localStorage_migrated'], 'readonly');
+      const readStore = readTransaction.objectStore('localStorage_migrated');
+      
+      const savedData = await new Promise<any>((resolve, reject) => {
+        const request = readStore.get(key);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+
+      if (!savedData || savedData.value !== value) {
+        return { success: false, validated: false, error: 'Validação falhou - dados não coincidem' };
+      }
+
+      // Marca como validado
+      savedData.validated = true;
+      const validateTransaction = this.db.transaction(['localStorage_migrated'], 'readwrite');
+      const validateStore = validateTransaction.objectStore('localStorage_migrated');
+      
+      await new Promise<void>((resolve, reject) => {
+        const request = validateStore.put(savedData);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+
+      console.log(`✅ Chave '${key}' migrada e validada com sucesso`);
+      return { success: true, validated: true };
+
+    } catch (error) {
+      const errorMsg = `Erro na migração de '${key}': ${error}`;
+      console.error('❌', errorMsg);
+      return { success: false, validated: false, error: errorMsg };
+    }
+  }
+
+  // ETAPA 4: Migração completa segura (só depois de testar cada chave)
+  async performSafeMigration(): Promise<{
+    success: boolean;
+    itemsMigrated: number;
+    errors: string[];
+    backupCreated: boolean;
+  }> {
+    const result = {
+      success: false,
+      itemsMigrated: 0,
+      errors: [] as string[],
+      backupCreated: false
+    };
+
+    // Verifica status primeiro
+    const status = await this.checkMigrationStatus();
+    if (!status.needsMigration) {
+      result.errors.push('Migração não é necessária ou já foi realizada');
+      return result;
+    }
+
+    // Cria backup completo
+    const backupResult = await this.createSafeBackup();
+    if (!backupResult.success) {
+      result.errors.push(backupResult.error || 'Falha ao criar backup');
+      return result;
+    }
+    result.backupCreated = true;
+
+    console.log('🔄 Iniciando migração segura...');
+
+    // Migra uma chave por vez
+    for (const key of this.MIGRATION_KEYS) {
+      if (localStorage.getItem(key) !== null) {
+        console.log(`🔄 Migrando: ${key}`);
+        
+        const keyResult = await this.migrateSingleKey(key);
+        
+        if (keyResult.success && keyResult.validated) {
+          result.itemsMigrated++;
+          console.log(`✅ ${key} migrado com sucesso`);
+        } else {
+          result.errors.push(keyResult.error || `Falha na migração de ${key}`);
+          console.error(`❌ Falha na migração de ${key}:`, keyResult.error);
+          // Para na primeira falha para evitar problemas
+          break;
+        }
+      }
+    }
+
+    result.success = result.itemsMigrated > 0 && result.errors.length === 0;
+    
+    if (result.success) {
+      console.log(`🎉 Migração concluída com sucesso! ${result.itemsMigrated} itens migrados`);
+    } else {
+      console.warn(`⚠️ Migração parcial ou com erros. ${result.itemsMigrated} itens migrados`);
+    }
+
+    return result;
+  }
+
+  // ETAPA 5: Método para RECUPERAR dados migrados (substituindo localStorage)
+  async getMigratedValue(key: string): Promise<string | null> {
+    if (!this.db) return null;
+
+    try {
+      const transaction = this.db.transaction(['localStorage_migrated'], 'readonly');
+      const store = transaction.objectStore('localStorage_migrated');
+      
+      const result = await new Promise<any>((resolve, reject) => {
+        const request = store.get(key);
+        request.onsuccess = () => resolve(request.result);
+        request.onerror = () => reject(request.error);
+      });
+
+      return result ? result.value : null;
+    } catch (error) {
+      if (import.meta.env.MODE === 'development') {
+        console.error(`Erro ao recuperar valor migrado '${key}':`, error);
+      }
+      return null;
+    }
+  }
+
+  // ETAPA 6: Método para SALVAR dados (atualiza IndexedDB ao invés de localStorage)
+  async saveMigratedValue(key: string, value: string): Promise<boolean> {
+    if (!this.db) return false;
+
+    try {
+      const migrationData = {
+        key,
+        value,
+        originalSource: 'application',
+        migratedAt: new Date().toISOString(),
+        validated: true
+      };
+
+      const transaction = this.db.transaction(['localStorage_migrated'], 'readwrite');
+      const store = transaction.objectStore('localStorage_migrated');
+      
+      await new Promise<void>((resolve, reject) => {
+        const request = store.put(migrationData);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+
+      return true;
+    } catch (error) {
+      if (import.meta.env.MODE === 'development') {
+        console.error(`Erro ao salvar valor migrado '${key}':`, error);
+      }
+      return false;
+    }
+  }
+
+  // SEGURANÇA: Rollback em caso de problemas
+  async rollbackMigration(): Promise<{ success: boolean; error?: string }> {
+    if (!this.db) return { success: false, error: 'IndexedDB não inicializado' };
+
+    try {
+      const transaction = this.db.transaction(['localStorage_migrated'], 'readwrite');
+      const store = transaction.objectStore('localStorage_migrated');
+      
+      await new Promise<void>((resolve, reject) => {
+        const request = store.clear();
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+      });
+
+      console.log('✅ Rollback realizado - dados migrados removidos');
+      return { success: true };
+    } catch (error) {
+      const errorMsg = `Erro no rollback: ${error}`;
+      console.error('❌', errorMsg);
+      return { success: false, error: errorMsg };
     }
   }
 

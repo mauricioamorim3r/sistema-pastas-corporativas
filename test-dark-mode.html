@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste - Modo Escuro</title>
+    <link rel="stylesheet" href="./index.css">
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 p-8">
+    <div class="max-w-md mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+            🌙 Teste do Modo Escuro
+        </h1>
+        
+        <p class="text-gray-700 dark:text-gray-300 mb-4">
+            Este é um teste para verificar se o modo escuro está funcionando corretamente.
+        </p>
+        
+        <button id="toggle-dark" class="px-4 py-2 bg-blue-600 dark:bg-blue-500 text-white rounded-lg hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors">
+            🔄 Alternar Modo Escuro
+        </button>
+        
+        <div class="mt-4 p-3 bg-gray-50 dark:bg-gray-700 rounded">
+            <p class="text-sm text-gray-600 dark:text-gray-400">
+                Status: <span id="mode-status" class="font-semibold">Modo Claro</span>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const toggleButton = document.getElementById('toggle-dark');
+        const modeStatus = document.getElementById('mode-status');
+        
+        function updateStatus() {
+            const isDark = document.documentElement.classList.contains('dark');
+            modeStatus.textContent = isDark ? 'Modo Escuro' : 'Modo Claro';
+        }
+        
+        toggleButton.addEventListener('click', () => {
+            document.documentElement.classList.toggle('dark');
+            updateStatus();
+        });
+        
+        // Inicializar com base na preferência do sistema
+        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        
+        updateStatus();
+    </script>
+</body>
+</html> 

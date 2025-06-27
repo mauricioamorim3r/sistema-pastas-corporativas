@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Save, RefreshCw, Trash2, Download, Upload, Users, Hash, Plus, X } from 'lucide-react';
 import { RESPONSIBLES_DATA, AVAILABLE_TAGS_DATA } from '../../constants';
+import { LocalFolderSettings } from './LocalFolderSettings';
 
 interface SettingsModalContentProps {
   onClose: () => void;
@@ -100,7 +101,7 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
         setResponsibles([]);
       }
     }
-    
+
     if (savedTags) {
       try {
         const parsed = JSON.parse(savedTags);
@@ -113,29 +114,29 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
         setTags([]);
       }
     }
-    
+
     if (savedEditedDefaultResponsibles) {
       try {
-        setEditedDefaultResponsibles(JSON.parse(savedEditedDefaultResponsibles));
+        const parsed = JSON.parse(savedEditedDefaultResponsibles);
+        setEditedDefaultResponsibles(parsed);
       } catch (error) {
-        console.error('Erro ao carregar responsáveis padrão editados:', error);
+        console.error('❌ Erro ao carregar responsáveis editados:', error);
         localStorage.removeItem('edited-default-responsibles');
       }
     }
-    
+
     if (savedEditedDefaultTags) {
       try {
-        setEditedDefaultTags(JSON.parse(savedEditedDefaultTags));
+        const parsed = JSON.parse(savedEditedDefaultTags);
+        setEditedDefaultTags(parsed);
       } catch (error) {
-        console.error('Erro ao carregar tags padrão editadas:', error);
+        console.error('❌ Erro ao carregar tags editadas:', error);
         localStorage.removeItem('edited-default-tags');
       }
     }
   }, []);
 
-  // Diagnóstico para debug (removido em produção)
-
-  // Funções para gerenciar usuários
+  // Funções para gerenciar responsáveis
   const addResponsible = () => {
     if (newResponsible.trim() && !responsibles.includes(newResponsible.trim())) {
       const updated = [...responsibles, newResponsible.trim()];
@@ -150,11 +151,7 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
     const updated = responsibles.filter((_, i) => i !== index);
     setResponsibles(updated);
     localStorage.setItem('custom-responsibles', JSON.stringify(updated));
-    
-    // Forçar atualização do componente
-    setTimeout(() => {
-      onDataChange();
-    }, 100);
+    onDataChange();
   };
 
   const updateResponsible = (index: number, newValue: string) => {
@@ -331,6 +328,9 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Sistema de Pasta Local Automática */}
+      <LocalFolderSettings />
+
       {/* Aparência */}
       <div>
         <h3 className="mb-3 text-lg font-medium text-gray-800 dark:text-gray-100">🎨 Aparência</h3>
@@ -688,23 +688,19 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
                   </span>
                 )}
                 <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    console.log('🖱️ Clique no botão remover responsável:', index);
-                    removeResponsible(index);
-                  }}
-                  className="p-1 text-red-500 rounded transition-colors hover:bg-red-100 dark:hover:bg-red-900"
+                  onClick={() => removeResponsible(index)}
+                  className="ml-2 text-red-500 hover:text-red-700"
                   title="Remover responsável"
                 >
-                  <X size={18} />
+                  <X size={16} />
                 </button>
               </div>
             ))}
           </div>
         </div>
 
-          {/* Gerenciamento de Tags */}
-          <div>
+        {/* Gerenciamento de Tags */}
+        <div>
           <h4 className="flex items-center mb-2 font-medium text-gray-700 text-md dark:text-gray-200">
             <Hash size={18} className="mr-2" />
             Tags
@@ -730,7 +726,6 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
             </button>
           </div>
 
-          {/* Lista de tags */}
           <div className="overflow-y-auto max-h-48 scrollbar-custom">
             {/* Tags padrão */}
             <div className="mb-3">
@@ -772,123 +767,114 @@ export const SettingsModalContent: React.FC<SettingsModalContentProps> = ({
             </div>
             
             {/* Tags personalizadas */}
-            {tags.length > 0 && (
-              <div>
-                <h5 className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">Tags Personalizadas</h5>
-                <div className="flex flex-wrap gap-2">
-                  {tags.map((tag, index) => (
-                    <div key={`custom-tag-${index}`} className="flex items-center px-3 py-1 text-sm text-green-800 bg-green-100 rounded-full dark:bg-green-900 dark:text-green-200">
-                      {editingTag?.index === index && !editingTag?.isDefault ? (
-                        <input
-                          type="text"
-                          value={editingTag.value}
-                          onChange={(e) => setEditingTag({ index, value: e.target.value, isDefault: false })}
-                          className="w-20 text-sm bg-transparent border-none outline-none"
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') updateTag(index, editingTag.value);
-                            if (e.key === 'Escape') setEditingTag(null);
-                          }}
-                          onBlur={() => updateTag(index, editingTag.value)}
-                          autoFocus
-                        />
-                      ) : (
-                        <span
-                          className="cursor-pointer hover:underline"
-                          onClick={() => {
-                            console.log('🖱️ Clique para editar tag:', index, tag);
-                            setEditingTag({ index, value: tag, isDefault: false });
-                          }}
-                        >
-                          {tag}
-                        </span>
-                      )}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          console.log('🖱️ Clique no botão remover tag:', index);
-                          removeTag(index);
+            <div>
+              <h5 className="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">Tags Personalizadas</h5>
+              <div className="flex flex-wrap gap-2">
+                {tags.map((tag, index) => (
+                  <div key={`custom-tag-${index}`} className="flex items-center px-3 py-1 text-sm text-gray-800 bg-gray-100 rounded-full border border-gray-300 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600">
+                    {editingTag?.index === index && !editingTag?.isDefault ? (
+                      <input
+                        type="text"
+                        value={editingTag.value}
+                        onChange={(e) => setEditingTag({ index, value: e.target.value, isDefault: false })}
+                        className="w-20 text-sm bg-transparent border-none outline-none"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') updateTag(index, editingTag.value);
+                          if (e.key === 'Escape') setEditingTag(null);
                         }}
-                        className="ml-2 text-green-600 transition-colors dark:text-green-400 hover:text-red-500"
-                        title="Remover tag"
+                        onBlur={() => updateTag(index, editingTag.value)}
+                        autoFocus
+                      />
+                    ) : (
+                      <span
+                        className="cursor-pointer hover:underline"
+                        onClick={() => setEditingTag({ index, value: tag, isDefault: false })}
                       >
-                        <X size={18} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
+                        {tag}
+                      </span>
+                    )}
+                    <button
+                      onClick={() => removeTag(index)}
+                      className="ml-1 text-red-500 hover:text-red-700"
+                      title="Remover tag"
+                    >
+                      <X size={12} />
+                    </button>
+                  </div>
+                ))}
               </div>
-            )}
+            </div>
           </div>
         </div>
-        </div>
-      </div>
-
-      {/* Backup e Dados */}
-      <div>
-        <h3 className="mb-3 text-lg font-medium text-gray-800 dark:text-gray-100">💾 Backup e Dados</h3>
-        <div className="space-y-3">
-          <div className="flex space-x-2">
-            <button
-              onClick={handleExportData}
-              className="flex flex-1 justify-center items-center px-3 py-2 text-sm text-white bg-blue-600 rounded-md transition-colors hover:bg-blue-700"
-            >
-              <Download size={18} className="mr-2" />
-              Exportar Dados
-            </button>
-            <button
-              onClick={handleImportData}
-              disabled={!appData.trim()}
-              className="flex flex-1 justify-center items-center px-3 py-2 text-sm text-white bg-green-600 rounded-md transition-colors hover:bg-green-700 disabled:bg-gray-400"
-            >
-              <Upload size={18} className="mr-2" />
-              Importar Dados
-            </button>
-          </div>
-
-          <textarea
-            value={appData}
-            onChange={(e) => setAppData(e.target.value)}
-            placeholder="Cole aqui o JSON de backup para importar..."
-            className="px-3 py-2 w-full h-24 text-xs rounded-md border border-gray-300 border-solid resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 scrollbar-custom"
-          />
-
-          <div className="flex space-x-2">
-            <button
-              onClick={handleResetSettings}
-              className="flex flex-1 justify-center items-center px-3 py-2 text-sm text-white bg-yellow-600 rounded-md transition-colors hover:bg-yellow-700"
-            >
-              <RefreshCw size={18} className="mr-2" />
-              Resetar Configurações
-            </button>
-            <button
-              onClick={handleClearAllData}
-              className="flex flex-1 justify-center items-center px-3 py-2 text-sm text-white bg-red-600 rounded-md transition-colors hover:bg-red-700"
-            >
-              <Trash2 size={18} className="mr-2" />
-              Limpar Todos os Dados
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Botões de ação */}
-      <div className="flex justify-end pt-4 space-x-3 border-t border-gray-200 border-solid dark:border-gray-700">
-        <button
-          type="button"
-          className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md transition-colors dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
-          onClick={onClose}
-        >
-          Cancelar
-        </button>
-        <button
-          type="button"
-          className="flex items-center px-4 py-2 text-white bg-blue-600 rounded-md transition-colors hover:bg-blue-700"
-          onClick={handleSaveSettings}
-        >
-          <Save size={18} className="mr-2" />
-          Salvar Configurações
-        </button>
       </div>
     </div>
-  );
-}; 
+
+    {/* Backup e Importação */}
+    <div>
+      <h3 className="mb-3 text-lg font-medium text-gray-800 dark:text-gray-100">💾 Backup e Importação</h3>
+      <div className="space-y-3">
+        <div className="flex space-x-2">
+          <button
+            onClick={handleExportData}
+            className="flex flex-1 justify-center items-center px-3 py-2 text-sm text-white bg-blue-600 rounded-md transition-colors hover:bg-blue-700"
+          >
+            <Download size={18} className="mr-2" />
+            Exportar Dados
+          </button>
+          <button
+            onClick={handleImportData}
+            disabled={!appData.trim()}
+            className="flex flex-1 justify-center items-center px-3 py-2 text-sm text-white bg-green-600 rounded-md transition-colors hover:bg-green-700 disabled:bg-gray-400"
+          >
+            <Upload size={18} className="mr-2" />
+            Importar Dados
+          </button>
+        </div>
+
+        <textarea
+          value={appData}
+          onChange={(e) => setAppData(e.target.value)}
+          placeholder="Cole aqui o JSON de backup para importar..."
+          className="px-3 py-2 w-full h-24 text-xs rounded-md border border-gray-300 border-solid resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-100 scrollbar-custom"
+        />
+
+        <div className="flex space-x-2">
+          <button
+            onClick={handleResetSettings}
+            className="flex flex-1 justify-center items-center px-3 py-2 text-sm text-white bg-yellow-600 rounded-md transition-colors hover:bg-yellow-700"
+          >
+            <RefreshCw size={18} className="mr-2" />
+            Resetar Configurações
+          </button>
+          <button
+            onClick={handleClearAllData}
+            className="flex flex-1 justify-center items-center px-3 py-2 text-sm text-white bg-red-600 rounded-md transition-colors hover:bg-red-700"
+          >
+            <Trash2 size={18} className="mr-2" />
+            Limpar Todos os Dados
+          </button>
+        </div>
+      </div>
+    </div>
+
+    {/* Botões de ação */}
+    <div className="flex justify-end pt-4 space-x-3 border-t border-gray-200 border-solid dark:border-gray-700">
+      <button
+        type="button"
+        className="px-4 py-2 text-gray-700 bg-gray-200 rounded-md transition-colors dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+        onClick={onClose}
+      >
+        Cancelar
+      </button>
+      <button
+        type="button"
+        className="flex items-center px-4 py-2 text-white bg-blue-600 rounded-md transition-colors hover:bg-blue-700"
+        onClick={handleSaveSettings}
+      >
+        <Save size={18} className="mr-2" />
+        Salvar Configurações
+      </button>
+    </div>
+  </div>
+); 
+};

@@ -1,344 +1,241 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { Folder } from '../types';
-import { SortConfig, SortField, SortDirection } from '../components/FolderSortControls';
+import { useState, useCallback, useMemo } from 'react';
+import { Folder, SortCriteria, SortConfiguration, SortState, SortResult, SORT_CRITERIA_LABELS } from '../types';
 
-// Função auxiliar para extrair valor de ordenação
-function getSortValue(folder: Folder, field: SortField): any {
-  switch (field) {
-    case 'name':
-      return folder.name?.toLowerCase() || '';
-    
-    case 'responsible':
-      return folder.responsible?.toLowerCase() || '';
-    
-    case 'createdAt':
-      return new Date(folder.createdAt || '').getTime() || 0;
-    
-    case 'updatedAt':
-      return new Date(folder.updatedAt || '').getTime() || 0;
-    
-    case 'size':
-      // Calcular tamanho baseado no número de subpastas
-      return folder.subFolders?.length || 0;
-    
-    case 'color':
-      return folder.color || '';
-    
-    case 'tags':
-      return folder.tags?.length || 0;
-    
-    default:
-      return '';
-  }
-}
+// Estado padrão seguro
+const DEFAULT_SORT_STATE: SortState = {
+  globalSort: {
+    criteria: SortCriteria.CUSTOM_MANUAL,
+    direction: 'asc',
+    preserveManualPositions: true,
+    applyToSubfolders: false
+  },
+  levelSpecificSorts: {},
+  lastManualChange: null,
+  isCustomMode: true // Inicia em modo personalizado para não quebrar nada
+};
 
-// Função de comparação para ordenação
-function compareValues(a: any, b: any, direction: SortDirection): number {
-  if (a === b) return 0;
-  
-  // Tratar valores nulos/undefined
-  if (a == null && b == null) return 0;
-  if (a == null) return direction === 'asc' ? -1 : 1;
-  if (b == null) return direction === 'asc' ? 1 : -1;
-  
-  // Comparação numérica
-  if (typeof a === 'number' && typeof b === 'number') {
-    return direction === 'asc' ? a - b : b - a;
-  }
-  
-  // Comparação de strings
-  const aStr = String(a);
-  const bStr = String(b);
-  
-  if (direction === 'asc') {
-    return aStr.localeCompare(bStr, 'pt-BR', { numeric: true });
-  } else {
-    return bStr.localeCompare(aStr, 'pt-BR', { numeric: true });
-  }
-}
-
-export function useFolderSorting(folders: Folder[]) {
-  // Estado da configuração de ordenação
-  const [sortConfig, setSortConfig] = useState<SortConfig>(() => {
-    const saved = localStorage.getItem('folder-sort-config');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        // Fallback para configuração padrão se JSON inválido
-      }
-    }
-    
-    return {
-      field: 'name' as SortField,
-      direction: 'asc' as SortDirection
-    };
-  });
-
-  // Histórico de ordenações para undo/redo
-  const [sortHistory, setSortHistory] = useState<SortConfig[]>([]);
-  const [historyIndex, setHistoryIndex] = useState(-1);
-
-  // Estatísticas de ordenação
-  const [sortStats, setSortStats] = useState({
-    totalSorts: 0,
-    mostUsedField: 'name',
-    lastSortTime: null as Date | null
-  });
-
-  // Salvar configuração quando muda
-  useEffect(() => {
-    localStorage.setItem('folder-sort-config', JSON.stringify(sortConfig));
-    
-    // Atualizar estatísticas
-    setSortStats(prev => ({
-      totalSorts: prev.totalSorts + 1,
-      mostUsedField: sortConfig.field,
-      lastSortTime: new Date()
-    }));
-    
-  }, [sortConfig]);
-
-  // Folders ordenados - usando useMemo para performance
-  const sortedFolders = useMemo(() => {
-    if (!folders || folders.length === 0) return [];
-    
-    console.log(`🔄 Aplicando ordenação: ${sortConfig.field} (${sortConfig.direction})`);
-    
-    const sorted = [...folders].sort((a, b) => {
-      // Ordenação principal
-      const aValue = getSortValue(a, sortConfig.field);
-      const bValue = getSortValue(b, sortConfig.field);
-      
-      const primaryResult = compareValues(aValue, bValue, sortConfig.direction);
-      
-      // Se valores principais são iguais, usar ordenação secundária
-      if (primaryResult === 0 && sortConfig.secondary) {
-        const aSecondary = getSortValue(a, sortConfig.secondary.field);
-        const bSecondary = getSortValue(b, sortConfig.secondary.field);
-        
-        return compareValues(aSecondary, bSecondary, sortConfig.secondary.direction);
-      }
-      
-      return primaryResult;
-    });
-    
-    console.log(`✅ Ordenação aplicada: ${sorted.length} pastas ordenadas`);
-    return sorted;
-  }, [folders, sortConfig]);
-
-  // Função para alterar ordenação
-  const updateSort = useCallback((newSortConfig: SortConfig) => {
-    // Adicionar ao histórico se diferente da configuração atual
-    if (JSON.stringify(newSortConfig) !== JSON.stringify(sortConfig)) {
-      setSortHistory(prev => {
-        const newHistory = prev.slice(0, historyIndex + 1);
-        newHistory.push(sortConfig);
-        return newHistory.slice(-10); // Manter últimas 10 ordenações
-      });
-      setHistoryIndex(prev => Math.min(prev + 1, 9));
-    }
-    
-    setSortConfig(newSortConfig);
-  }, [sortConfig, historyIndex]);
-
-  // Funções de undo/redo
-  const canUndo = historyIndex >= 0;
-  const canRedo = historyIndex < sortHistory.length - 1;
-
-  const undo = useCallback(() => {
-    if (canUndo) {
-      const previousSort = sortHistory[historyIndex];
-      setSortConfig(previousSort);
-      setHistoryIndex(prev => prev - 1);
-    }
-  }, [canUndo, sortHistory, historyIndex]);
-
-  const redo = useCallback(() => {
-    if (canRedo) {
-      const nextSort = sortHistory[historyIndex + 1];
-      setSortConfig(nextSort);
-      setHistoryIndex(prev => prev + 1);
-    }
-  }, [canRedo, sortHistory, historyIndex]);
-
-  // Função para ordenação rápida por campo
-  const quickSort = useCallback((field: SortField, direction?: SortDirection) => {
-    const newDirection = direction || (sortConfig.field === field && sortConfig.direction === 'asc' ? 'desc' : 'asc');
-    
-    updateSort({
-      field,
-      direction: newDirection
-    });
-  }, [sortConfig, updateSort]);
-
-  // Função para aplicar preset de ordenação
-  const applyPreset = useCallback((preset: 'alphabetical' | 'recent' | 'responsibility' | 'size') => {
-    let newConfig: SortConfig;
-    
-    switch (preset) {
-      case 'alphabetical':
-        newConfig = { field: 'name', direction: 'asc' };
-        break;
-      
-      case 'recent':
-        newConfig = { field: 'updatedAt', direction: 'desc' };
-        break;
-      
-      case 'responsibility':
-        newConfig = { 
-          field: 'responsible', 
-          direction: 'asc',
-          secondary: { field: 'name', direction: 'asc' }
-        };
-        break;
-      
-      case 'size':
-        newConfig = { 
-          field: 'size', 
-          direction: 'desc',
-          secondary: { field: 'name', direction: 'asc' }
-        };
-        break;
-      
-      default:
-        return;
-    }
-    
-    updateSort(newConfig);
-  }, [updateSort]);
-
-  // Função para inverter direção atual
-  const toggleDirection = useCallback(() => {
-    updateSort({
-      ...sortConfig,
-      direction: sortConfig.direction === 'asc' ? 'desc' : 'asc'
-    });
-  }, [sortConfig, updateSort]);
-
-  // Função para adicionar ordenação secundária
-  const addSecondarySort = useCallback((field: SortField, direction: SortDirection = 'asc') => {
-    if (field === sortConfig.field) return; // Não pode ser igual ao campo principal
-    
-    updateSort({
-      ...sortConfig,
-      secondary: { field, direction }
-    });
-  }, [sortConfig, updateSort]);
-
-  // Função para remover ordenação secundária
-  const removeSecondarySort = useCallback(() => {
-    updateSort({
-      field: sortConfig.field,
-      direction: sortConfig.direction
-    });
-  }, [sortConfig, updateSort]);
-
-  // Análise de performance da ordenação
-  const getSortAnalysis = useCallback(() => {
-    const analysis = {
-      totalFolders: folders.length,
-      sortField: sortConfig.field,
-      sortDirection: sortConfig.direction,
-      hasSecondarySort: !!sortConfig.secondary,
-      uniqueValues: new Set(folders.map(f => getSortValue(f, sortConfig.field))).size,
-      sortEfficiency: 0,
-      recommendations: [] as string[]
-    };
-    
-    // Calcular eficiência da ordenação
-    analysis.sortEfficiency = (analysis.uniqueValues / Math.max(analysis.totalFolders, 1)) * 100;
-    
-    // Gerar recomendações
-    if (analysis.sortEfficiency < 20) {
-      analysis.recommendations.push('Considere adicionar ordenação secundária para melhor organização');
-    }
-    
-    if (sortConfig.field === 'name' && analysis.totalFolders > 20) {
-      analysis.recommendations.push('Para muitas pastas, considere ordenar por categoria ou responsável primeiro');
-    }
-    
-    if (!sortConfig.secondary && analysis.totalFolders > 10) {
-      analysis.recommendations.push('Ordenação secundária por nome melhoraria a organização');
-    }
-    
-    return analysis;
-  }, [folders, sortConfig]);
-
-  // Função para resetar para ordenação padrão
-  const resetToDefault = useCallback(() => {
-    updateSort({
-      field: 'name',
-      direction: 'asc'
-    });
-  }, [updateSort]);
-
-  // Função para obter estatísticas de uso
-  const getUsageStats = useCallback(() => {
-    const stats = localStorage.getItem('folder-sort-stats');
-    return stats ? JSON.parse(stats) : sortStats;
-  }, [sortStats]);
-
-  // Função para exportar configuração de ordenação
-  const exportSortConfig = useCallback(() => {
-    return {
-      config: sortConfig,
-      history: sortHistory,
-      stats: sortStats,
-      analysis: getSortAnalysis(),
-      timestamp: new Date().toISOString()
-    };
-  }, [sortConfig, sortHistory, sortStats, getSortAnalysis]);
-
-  // Função para importar configuração de ordenação
-  const importSortConfig = useCallback((importData: any) => {
+/**
+ * Hook para gerenciar ordenação de pastas de forma segura
+ * Mantém compatibilidade total com drag & drop existente
+ */
+export const useFolderSorting = () => {
+  const [sortState, setSortState] = useState<SortState>(() => {
+    // Tenta carregar estado salvo, mas mantém padrão seguro se não encontrar
     try {
-      if (importData.config) {
-        setSortConfig(importData.config);
-      }
-      if (importData.history) {
-        setSortHistory(importData.history);
-      }
-      if (importData.stats) {
-        setSortStats(importData.stats);
-      }
-      return true;
+      const saved = localStorage.getItem('folder-sort-state');
+      return saved ? { ...DEFAULT_SORT_STATE, ...JSON.parse(saved) } : DEFAULT_SORT_STATE;
+    } catch {
+      return DEFAULT_SORT_STATE;
+    }
+  });
+
+  // Função para salvar estado com segurança
+  const saveSortState = useCallback((newState: SortState) => {
+    try {
+      localStorage.setItem('folder-sort-state', JSON.stringify(newState));
     } catch (error) {
-      console.error('Erro ao importar configuração de ordenação:', error);
-      return false;
+      console.warn('Não foi possível salvar estado de ordenação:', error);
     }
   }, []);
 
+  // Função para aplicar critério de ordenação específico
+  const applySortCriteria = useCallback((folders: Folder[], criteria: SortCriteria, direction: 'asc' | 'desc' = 'asc'): Folder[] => {
+    if (!folders || folders.length === 0) return folders;
+    
+    // Se for modo personalizado, não ordena (mantém ordem atual)
+    if (criteria === SortCriteria.CUSTOM_MANUAL) {
+      return [...folders];
+    }
+
+    const sortedFolders = [...folders];
+
+    switch (criteria) {
+      case SortCriteria.ALPHABETICAL_ASC:
+      case SortCriteria.ALPHABETICAL_DESC:
+        sortedFolders.sort((a, b) => {
+          const comparison = a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' });
+          return direction === 'desc' ? -comparison : comparison;
+        });
+        break;
+
+      case SortCriteria.RESPONSIBLE_ASC:
+      case SortCriteria.RESPONSIBLE_DESC:
+        sortedFolders.sort((a, b) => {
+          const responsibleA = a.responsible || '';
+          const responsibleB = b.responsible || '';
+          const comparison = responsibleA.localeCompare(responsibleB, 'pt-BR', { sensitivity: 'base' });
+          return direction === 'desc' ? -comparison : comparison;
+        });
+        break;
+
+      case SortCriteria.COLOR_GROUPED:
+        sortedFolders.sort((a, b) => {
+          const colorA = a.color || '';
+          const colorB = b.color || '';
+          return colorA.localeCompare(colorB);
+        });
+        break;
+
+      case SortCriteria.TYPE_FOLDERS_FIRST:
+        sortedFolders.sort((a, b) => {
+          const hasSubA = (a.subFolders && a.subFolders.length > 0) ? 1 : 0;
+          const hasSubB = (b.subFolders && b.subFolders.length > 0) ? 1 : 0;
+          return hasSubB - hasSubA; // Pastas com subpastas primeiro
+        });
+        break;
+
+      // Critérios mais avançados podem ser implementados depois
+      case SortCriteria.DATE_CREATED_ASC:
+      case SortCriteria.DATE_CREATED_DESC:
+      case SortCriteria.FREQUENTLY_USED:
+        // Por enquanto, ordena alfabeticamente como fallback
+        sortedFolders.sort((a, b) => a.name.localeCompare(b.name, 'pt-BR', { sensitivity: 'base' }));
+        break;
+
+      default:
+        break;
+    }
+
+    return sortedFolders;
+  }, []);
+
+  // Função para aplicar ordenação recursivamente mantendo estrutura
+  const applySortToTree = useCallback((folders: Folder[], config: SortConfiguration): SortResult => {
+    const processLevel = (levelFolders: Folder[]): Folder[] => {
+      // Aplica ordenação no nível atual
+      const sortedLevel = applySortCriteria(levelFolders, config.criteria, config.direction);
+      
+      // Se deve aplicar a subpastas também
+      if (config.applyToSubfolders) {
+        return sortedLevel.map(folder => {
+          if (folder.subFolders && folder.subFolders.length > 0) {
+            return {
+              ...folder,
+              subFolders: processLevel(folder.subFolders)
+            };
+          }
+          return folder;
+        });
+      } else {
+        return sortedLevel;
+      }
+    };
+
+    const sortedFolders = processLevel(folders);
+    
+    return {
+      sortedFolders,
+      appliedCriteria: config.criteria,
+      hadManualChanges: config.criteria === SortCriteria.CUSTOM_MANUAL,
+      preservedPositions: []
+    };
+  }, [applySortCriteria]);
+
+  // Função principal para ordenar pastas
+  const sortFolders = useCallback((folders: Folder[], newCriteria?: SortCriteria): SortResult => {
+    if (!folders || folders.length === 0) {
+      return {
+        sortedFolders: [],
+        appliedCriteria: sortState.globalSort.criteria,
+        hadManualChanges: false,
+        preservedPositions: []
+      };
+    }
+
+    const criteriaToUse = newCriteria || sortState.globalSort.criteria;
+    
+    const config: SortConfiguration = {
+      ...sortState.globalSort,
+      criteria: criteriaToUse
+    };
+
+    return applySortToTree(folders, config);
+  }, [sortState.globalSort, applySortToTree]);
+
+  // Função para alterar critério de ordenação
+  const changeSortCriteria = useCallback((newCriteria: SortCriteria, applyToSubfolders: boolean = false) => {
+    const newSortState: SortState = {
+      ...sortState,
+      globalSort: {
+        ...sortState.globalSort,
+        criteria: newCriteria,
+        applyToSubfolders
+      },
+      isCustomMode: newCriteria === SortCriteria.CUSTOM_MANUAL
+    };
+
+    setSortState(newSortState);
+    saveSortState(newSortState);
+  }, [sortState, saveSortState]);
+
+  // Função para marcar que houve mudança manual (drag & drop)
+  const markManualChange = useCallback((folderId: string | number) => {
+    const newSortState: SortState = {
+      ...sortState,
+      lastManualChange: String(folderId),
+      isCustomMode: true,
+      globalSort: {
+        ...sortState.globalSort,
+        criteria: SortCriteria.CUSTOM_MANUAL
+      }
+    };
+
+    setSortState(newSortState);
+    saveSortState(newSortState);
+  }, [sortState, saveSortState]);
+
+  // Função para resetar para ordenação automática
+  const resetToAutoSort = useCallback((criteria: SortCriteria = SortCriteria.ALPHABETICAL_ASC) => {
+    const newSortState: SortState = {
+      ...sortState,
+      globalSort: {
+        ...sortState.globalSort,
+        criteria
+      },
+      lastManualChange: null,
+      isCustomMode: false
+    };
+
+    setSortState(newSortState);
+    saveSortState(newSortState);
+  }, [sortState, saveSortState]);
+
+  // Memoize valores computados
+  const currentCriteria = useMemo(() => sortState.globalSort.criteria, [sortState.globalSort.criteria]);
+  const currentCriteriaLabel = useMemo(() => SORT_CRITERIA_LABELS[currentCriteria], [currentCriteria]);
+  const isInCustomMode = useMemo(() => sortState.isCustomMode, [sortState.isCustomMode]);
+  const canApplyAutoSort = useMemo(() => currentCriteria !== SortCriteria.CUSTOM_MANUAL, [currentCriteria]);
+
+  // Lista de critérios disponíveis (pode ser filtrada conforme necessário)
+  const availableCriteria = useMemo(() => [
+    SortCriteria.CUSTOM_MANUAL,
+    SortCriteria.ALPHABETICAL_ASC,
+    SortCriteria.ALPHABETICAL_DESC,
+    SortCriteria.RESPONSIBLE_ASC,
+    SortCriteria.RESPONSIBLE_DESC,
+    SortCriteria.COLOR_GROUPED,
+    SortCriteria.TYPE_FOLDERS_FIRST
+  ], []);
+
   return {
-    // Estado principal
-    sortConfig,
-    sortedFolders,
+    // Estado atual
+    currentCriteria,
+    currentCriteriaLabel,
+    isInCustomMode,
+    canApplyAutoSort,
+    availableCriteria,
     
-    // Funções de controle
-    updateSort,
-    quickSort,
-    applyPreset,
-    toggleDirection,
+    // Funções principais
+    sortFolders,
+    changeSortCriteria,
+    markManualChange,
+    resetToAutoSort,
     
-    // Ordenação secundária
-    addSecondarySort,
-    removeSecondarySort,
-    
-    // Histórico
-    canUndo,
-    canRedo,
-    undo,
-    redo,
-    sortHistory,
-    
-    // Utilitários
-    resetToDefault,
-    getSortAnalysis,
-    getUsageStats,
-    exportSortConfig,
-    importSortConfig,
-    
-    // Estatísticas
-    sortStats
+    // Estado completo para casos avançados
+    sortState,
+    setSortState: (newState: SortState) => {
+      setSortState(newState);
+      saveSortState(newState);
+    }
   };
-} 
+}; 

@@ -278,3 +278,59 @@ export interface MonitoringData {
   value: number;
   timestamp: string;
 }
+
+// ========================================
+// SISTEMA DE ORDENAÇÃO - TIPOS SEGUROS
+// ========================================
+
+// Critérios de ordenação disponíveis
+export enum SortCriteria {
+  ALPHABETICAL_ASC = 'alphabetical-asc',
+  ALPHABETICAL_DESC = 'alphabetical-desc',
+  DATE_CREATED_ASC = 'date-created-asc',
+  DATE_CREATED_DESC = 'date-created-desc',
+  RESPONSIBLE_ASC = 'responsible-asc',
+  RESPONSIBLE_DESC = 'responsible-desc',
+  TYPE_FOLDERS_FIRST = 'type-folders-first',
+  FREQUENTLY_USED = 'frequently-used',
+  COLOR_GROUPED = 'color-grouped',
+  CUSTOM_MANUAL = 'custom-manual'
+}
+
+// Labels amigáveis para exibição
+export const SORT_CRITERIA_LABELS: Record<SortCriteria, string> = {
+  [SortCriteria.ALPHABETICAL_ASC]: 'Nome (A-Z)',
+  [SortCriteria.ALPHABETICAL_DESC]: 'Nome (Z-A)',
+  [SortCriteria.DATE_CREATED_ASC]: 'Data (Mais Antiga)',
+  [SortCriteria.DATE_CREATED_DESC]: 'Data (Mais Recente)',
+  [SortCriteria.RESPONSIBLE_ASC]: 'Responsável (A-Z)',
+  [SortCriteria.RESPONSIBLE_DESC]: 'Responsável (Z-A)',
+  [SortCriteria.TYPE_FOLDERS_FIRST]: 'Tipo (Pastas Primeiro)',
+  [SortCriteria.FREQUENTLY_USED]: 'Mais Acessadas',
+  [SortCriteria.COLOR_GROUPED]: 'Agrupado por Cor',
+  [SortCriteria.CUSTOM_MANUAL]: 'Personalizada (Manual)'
+};
+
+// Configuração de ordenação para cada nível
+export interface SortConfiguration {
+  criteria: SortCriteria;
+  direction: 'asc' | 'desc';
+  preserveManualPositions: boolean;
+  applyToSubfolders: boolean;
+}
+
+// Estado da ordenação na aplicação
+export interface SortState {
+  globalSort: SortConfiguration;
+  levelSpecificSorts: Record<string, SortConfiguration>; // Para níveis específicos
+  lastManualChange: string | null; // ID da última pasta movida manualmente
+  isCustomMode: boolean; // Se está em modo personalizado
+}
+
+// Resultado da aplicação de ordenação
+export interface SortResult {
+  sortedFolders: Folder[];
+  appliedCriteria: SortCriteria;
+  hadManualChanges: boolean;
+  preservedPositions: string[]; // IDs das pastas que mantiveram posição manual
+}

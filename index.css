@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 
+/* Configuração do modo escuro para Tailwind v4 */
+@variant dark (&:where(.dark, .dark *));
+
 /* Estilos globais personalizados podem ser adicionados aqui */
 body {
   margin: 0;
